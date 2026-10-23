@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: soar-postgres
+    restart: always
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-soar_admin}
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-soar_db}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - single-node_default
+    mem_limit: 512m
+
+  soar-api:
+    build: .
+    container_name: soar-api
+    restart: always
+    ports:
+      - "127.0.0.1:8000:8000"
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+    depends_on:
+      - postgres
+    networks:
+      - single-node_default
+    mem_limit: 256m
+
+  n8n:
+    image: n8nio/n8n:${N8N_VERSION:-2.44.6}
+    container_name: soar-n8n
+    restart: always
+    ports:
+      - "127.0.0.1:5678:5678"
+    env_file:
+      - .env
+    environment:
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_DATABASE=n8n_db
+      - DB_POSTGRESDB_USER=soar_admin
+      - DB_POSTGRESDB_PASSWORD=${PG_PASSWORD}
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+      - N8N_SECURE_COOKIE=false
+      - EXECUTIONS_DATA_SAVE_ON_SUCCESS=none
+      - EXECUTIONS_DATA_PRUNE=true
+      - EXECUTIONS_DATA_MAX_AGE=168
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      - postgres
+    networks:
+      - single-node_default
+    mem_limit: 768m
+
+volumes:
+  pg_data:
+  n8n_data:
+
+networks:
+  single-node_default:
+    name: single-node_default
