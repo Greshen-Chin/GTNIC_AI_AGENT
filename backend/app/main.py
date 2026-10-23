@@ -82,7 +82,7 @@ def health_check():
 @app.get("/", tags=["System"])
 def root():
     return {
-        "message": "GTNIC SOAR-API (Tahap 5) is running.",
+        "message": "GTNIC SOAR-API is running.",
         "documentation": "/docs",
         "endpoints": {
             "internal_tools": [
