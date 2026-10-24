@@ -64,3 +64,52 @@ Visit [http://localhost:3000](http://localhost:3000) to view the Incident Queue 
 npm run build
 npm run start
 ```
+
+## Live API and Vercel deployment
+
+Set the Vercel project's **Root Directory** to `frontend`, use the Next.js
+framework preset, and use Node.js 22.x. Install with `npm install` and build with
+`npm run build`. This project uses Next.js 15 and React 19.
+
+Copy `.env.example` to `.env.local` for local development. Set the server-only
+`DASHBOARD_API_KEY` to the same value configured in the backend. Add that variable
+to the appropriate Vercel Production/Preview environments as well. Never use a
+`NEXT_PUBLIC_` variable for this key. Environment files remain ignored by Git.
+
+Browser requests use these same-origin endpoints:
+
+| Action | Method | Browser path | Backend path |
+| --- | --- | --- | --- |
+| Incident list | GET | `/api/incidents` | `/api/incidents` |
+| Incident detail | GET | `/api/incidents/{id}` | `/api/incidents/{id}` |
+| Analyst decision | POST | `/api/incidents/{id}/decision` | `/api/incidents/{id}/decision` |
+| Dashboard statistics | GET | `/api/stats` | `/api/stats` |
+
+`vercel.json` rewrites `/api/:path*` to
+`http://34.101.129.120:8000/api/:path*`, preserving the backend's `/api` prefix,
+request method, body, and query string. `next.config.mjs` reads the same rules for
+local development and `next start`. There are no competing Next.js API handlers.
+The browser stays on the frontend's HTTPS origin. Middleware adds the dashboard
+key to the upstream request; the key is not included in browser JavaScript or
+response headers. Missing server credentials produce HTTP 503; upstream errors
+remain errors and do not trigger a fallback to demo incidents.
+
+Data fetching runs through SWR in Client Components after hydration, so relative
+URLs are not passed to Node.js server-side `fetch` during builds or rendering.
+The service translates backend snake_case fields into the existing UI models.
+Optional details absent from the backend are shown as unknown or left empty.
+Approve/Reject records the analyst decision; it does not itself enforce firewall
+rules. The existing mock fixtures remain available as reference data but are no
+longer used by the live dashboard.
+
+The GCP backend must be reachable from Vercel on port 8000. A successful frontend
+build alone does not verify backend availability, Wazuh, Vertex AI, or database
+connections. No backend or deployment workflow changes are included here.
+
+Run the frontend checks before pushing:
+
+```bash
+npm run lint
+npm test
+npm run build
+```

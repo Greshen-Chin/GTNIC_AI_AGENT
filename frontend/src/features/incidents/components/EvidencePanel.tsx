@@ -3,17 +3,13 @@
 import React, { useState } from "react";
 import {
   Scale,
-  CheckCircle,
-  XCircle,
   FileCode,
-  ShieldAlert,
   ChevronDown,
   ChevronUp,
   Fingerprint,
 } from "lucide-react";
 import { Evidence } from "../types";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
 
 interface EvidencePanelProps {
   proEvidence: Evidence[];

@@ -11,7 +11,7 @@ import {
   MitreOwaspPanel,
   ToolTraceTerminal,
 } from "@/features/incidents/components";
-import { ShieldAlert, ArrowLeft, RefreshCw } from "lucide-react";
+import { ShieldAlert, ArrowLeft } from "lucide-react";
 
 export default function IncidentWorkspacePage() {
   const params = useParams();

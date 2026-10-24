@@ -1,56 +1,34 @@
-import { Incident, IncidentSummaryStats } from "../types";
-import { MOCK_INCIDENTS } from "./mockData";
-
-// In-memory store for client-side state transitions within the session
-let incidentsStore: Incident[] = [...MOCK_INCIDENTS];
+import { ApiError, apiRequest } from "@/lib/api";
+import type { Incident, IncidentSummaryStats } from "../types";
+import { toIncident, type ApiIncident } from "./incidentAdapter";
 
 export async function fetchIncidents(): Promise<Incident[]> {
-  // Simulate network latency (150ms)
-  await new Promise((resolve) => setTimeout(resolve, 150));
-  return [...incidentsStore];
+  return (await apiRequest<ApiIncident[]>("/incidents")).map(toIncident);
 }
 
 export async function fetchIncidentById(id: string): Promise<Incident | null> {
-  await new Promise((resolve) => setTimeout(resolve, 120));
-  const incident = incidentsStore.find((inc) => inc.id === id);
-  return incident ? { ...incident } : null;
+  try {
+    return toIncident(await apiRequest<ApiIncident>(`/incidents/${encodeURIComponent(id)}`));
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
+  }
 }
 
 export async function updateMitigationAction(
   id: string,
   action: "Approved" | "Rejected"
 ): Promise<Incident> {
-  await new Promise((resolve) => setTimeout(resolve, 200));
-  const index = incidentsStore.findIndex((inc) => inc.id === id);
-  if (index === -1) {
-    throw new Error(`Incident with id ${id} not found.`);
-  }
-
-  const updatedIncident: Incident = {
-    ...incidentsStore[index],
-    mitigationActionTaken: action,
-    status: action === "Approved" ? "Mitigated" : "False Positive",
-  };
-
-  incidentsStore[index] = updatedIncident;
-  return updatedIncident;
+  await apiRequest(`/incidents/${encodeURIComponent(id)}/decision`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ decision: action.toLowerCase(), decided_by: "soc-analyst" }),
+  });
+  const incident = await fetchIncidentById(id);
+  if (!incident) throw new Error(`Incident with id ${id} not found.`);
+  return incident;
 }
 
 export async function fetchIncidentStats(): Promise<IncidentSummaryStats> {
-  await new Promise((resolve) => setTimeout(resolve, 100));
-  const total = incidentsStore.length;
-  const critical = incidentsStore.filter((i) => i.severity === "Critical").length;
-  const high = incidentsStore.filter((i) => i.severity === "High").length;
-  const active = incidentsStore.filter((i) => i.status === "Active").length;
-  const mitigated = incidentsStore.filter((i) => i.status === "Mitigated").length;
-  const totalConfidence = incidentsStore.reduce((acc, i) => acc + i.aiConfidence, 0);
-
-  return {
-    totalIncidents: total,
-    criticalCount: critical,
-    highCount: high,
-    activeCount: active,
-    mitigatedCount: mitigated,
-    aiAverageConfidence: total > 0 ? totalConfidence / total : 0,
-  };
+  return apiRequest<IncidentSummaryStats>("/stats");
 }

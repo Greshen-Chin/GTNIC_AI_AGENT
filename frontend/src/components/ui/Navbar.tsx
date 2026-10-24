@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { ShieldAlert, Activity, Cpu, Bell, Terminal, RefreshCw } from "lucide-react";
-import { Badge } from "./Badge";
+import { ShieldAlert, Cpu, RefreshCw } from "lucide-react";
 
 export const Navbar: React.FC = () => {
   const [currentTime, setCurrentTime] = useState<string>("");

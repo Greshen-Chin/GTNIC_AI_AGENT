@@ -3,16 +3,13 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import {
-  ExternalLink,
   Search,
-  Filter,
-  Shield,
   Clock,
   Globe,
   Radio,
   ArrowRight,
 } from "lucide-react";
-import { Incident, SeverityLevel, AIVerdict } from "../types";
+import { Incident } from "../types";
 import { SeverityBadge, VerdictBadge, StatusBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { formatDateTime } from "@/lib/utils";

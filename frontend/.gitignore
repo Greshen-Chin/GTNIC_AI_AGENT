@@ -1,5 +1,8 @@
 # Dependencies
 node_modules/
+# Keep frontend source utilities despite the repository's Python lib/ rule.
+!src/lib/
+!src/lib/**
 .pnp
 .pnp.js
 .yarn/cache

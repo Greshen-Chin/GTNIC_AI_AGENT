@@ -1,6 +1,7 @@
-import useSWR from "swr";
+"use client";
+
+import useSWR, { useSWRConfig } from "swr";
 import { fetchIncidents, fetchIncidentById, updateMitigationAction, fetchIncidentStats } from "../services/incidentService";
-import { Incident } from "../types";
 
 export function useIncidents(refreshInterval: number = 3000) {
   const { data, error, isLoading, isValidating, mutate } = useSWR(
@@ -23,6 +24,7 @@ export function useIncidents(refreshInterval: number = 3000) {
 }
 
 export function useIncident(id: string | undefined | null) {
+  const { mutate: mutateCache } = useSWRConfig();
   const { data, error, isLoading, isValidating, mutate } = useSWR(
     id ? `/api/incidents/${id}` : null,
     () => (id ? fetchIncidentById(id) : Promise.resolve(null)),
@@ -49,7 +51,11 @@ export function useIncident(id: string | undefined | null) {
       );
 
       const updated = await updateMitigationAction(id, action);
-      mutate(updated, true);
+      await Promise.all([
+        mutate(updated),
+        mutateCache("/api/incidents"),
+        mutateCache("/api/stats"),
+      ]);
     } catch (err) {
       mutate();
       throw err;
@@ -68,7 +74,7 @@ export function useIncident(id: string | undefined | null) {
 
 export function useIncidentStats(refreshInterval: number = 3000) {
   const { data, error, isLoading, mutate } = useSWR(
-    "/api/incidents/stats",
+    "/api/stats",
     () => fetchIncidentStats(),
     {
       refreshInterval,

@@ -36,9 +36,9 @@ export const IncidentHeader: React.FC<IncidentHeaderProps> = ({
     setActionFeedback(null);
     try {
       await onMitigate("Approved");
-      setActionFeedback("Mitigation rules pushed to Edge Firewalls and EDR agents.");
+      setActionFeedback("Mitigation approval recorded.");
     } catch {
-      setActionFeedback("Failed to enforce mitigation.");
+      setActionFeedback("Failed to record mitigation approval.");
     } finally {
       setIsApproving(false);
     }
@@ -49,7 +49,7 @@ export const IncidentHeader: React.FC<IncidentHeaderProps> = ({
     setActionFeedback(null);
     try {
       await onMitigate("Rejected");
-      setActionFeedback("Incident marked as False Positive. Model feedback recorded.");
+      setActionFeedback("Incident marked as False Positive.");
     } catch {
       setActionFeedback("Failed to update status.");
     } finally {

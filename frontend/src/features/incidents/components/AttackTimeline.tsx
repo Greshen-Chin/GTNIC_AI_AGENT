@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { GitCommit, Clock, Target, Shield, AlertCircle } from "lucide-react";
+import { GitCommit, Clock } from "lucide-react";
 import { AttackStoryStep } from "../types";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { formatDateTime } from "@/lib/utils";

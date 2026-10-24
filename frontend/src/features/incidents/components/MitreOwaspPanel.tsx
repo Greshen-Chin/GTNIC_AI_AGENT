@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ShieldCheck, ExternalLink, BookOpen, AlertCircle, Bookmark } from "lucide-react";
+import { ShieldCheck, ExternalLink, BookOpen, Bookmark } from "lucide-react";
 import { MitreContext, OwaspContext } from "../types";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 

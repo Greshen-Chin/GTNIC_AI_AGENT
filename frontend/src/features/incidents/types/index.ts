@@ -31,6 +31,7 @@ export interface AttackStoryStep {
   title: string;
   description: string;
   phase:
+    | "Unknown"
     | "Reconnaissance"
     | "Initial Access"
     | "Execution"

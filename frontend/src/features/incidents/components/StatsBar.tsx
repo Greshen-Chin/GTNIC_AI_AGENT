@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ShieldAlert, AlertTriangle, CheckCircle2, BrainCircuit, Activity } from "lucide-react";
+import { AlertTriangle, CheckCircle2, BrainCircuit, Activity } from "lucide-react";
 import { IncidentSummaryStats } from "../types";
 
 interface StatsBarProps {

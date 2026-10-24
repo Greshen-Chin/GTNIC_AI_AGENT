@@ -9,9 +9,7 @@ import {
   Check,
   CheckCircle2,
   XCircle,
-  Play,
   Clock,
-  Code2,
 } from "lucide-react";
 import { ToolTrace } from "../types";
 
@@ -162,7 +160,7 @@ export const ToolTraceTerminal: React.FC<ToolTraceTerminalProps> = ({
                 <div className="space-y-2">
                   <div>
                     <span className="text-zinc-500 text-[11px] block mb-1">
-                      // Input Arguments:
+                      {"// Input Arguments:"}
                     </span>
                     <pre className="p-3 rounded bg-zinc-950 border border-zinc-800/80 text-emerald-400/90 text-[11px] overflow-x-auto whitespace-pre-wrap leading-relaxed">
                       {JSON.stringify(selectedTrace.input, null, 2)}
@@ -171,7 +169,7 @@ export const ToolTraceTerminal: React.FC<ToolTraceTerminalProps> = ({
 
                   <div>
                     <span className="text-zinc-500 text-[11px] block mb-1">
-                      // Agent Response Output:
+                      {"// Agent Response Output:"}
                     </span>
                     <pre className="p-3 rounded bg-zinc-950 border border-zinc-800/80 text-cyan-300 text-[11px] overflow-x-auto whitespace-pre-wrap leading-relaxed">
                       {JSON.stringify(selectedTrace.output, null, 2)}

@@ -3,12 +3,12 @@
 import React from "react";
 import { useIncidents, useIncidentStats } from "@/features/incidents/hooks";
 import { IncidentTable, StatsBar } from "@/features/incidents/components";
-import { ShieldCheck, Activity } from "lucide-react";
+import { Activity } from "lucide-react";
 
 export default function DashboardPage() {
   // Use SWR hook with 3-second refresh interval as requested
-  const { incidents, isLoading, isValidating } = useIncidents(3000);
-  const { stats } = useIncidentStats(3000);
+  const { incidents, isLoading, isValidating, error } = useIncidents(3000);
+  const { stats, error: statsError } = useIncidentStats(3000);
 
   return (
     <div className="space-y-6">
@@ -36,6 +36,12 @@ export default function DashboardPage() {
           <span className="text-emerald-400 font-semibold">Online (3s polling)</span>
         </div>
       </div>
+
+      {(error || statsError) && (
+        <div role="alert" className="rounded-lg border border-rose-500/50 bg-rose-950/30 p-4 text-sm text-rose-300">
+          Unable to load live dashboard data. Retrying automatically.
+        </div>
+      )}
 
       {/* Top SOC Metrics */}
       <StatsBar stats={stats} isValidating={isValidating} />
