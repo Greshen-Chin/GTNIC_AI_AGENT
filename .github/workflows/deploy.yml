@@ -1,0 +1,49 @@
+name: Deploy SOAR Backend to GCP
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to GCP VM
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Deploy via SSH to GCP
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.GCP_HOST }}
+          username: ${{ secrets.GCP_USERNAME }}
+          key: ${{ secrets.GCP_SSH_KEY }}
+          port: 22
+          timeout: 60s
+          command_timeout: 15m
+          script_stop: true
+          script: |
+            set -e
+
+            echo "==> Navigating to SOAR project directory..."
+            cd /home/gtnic/soar
+
+            echo "==> Pulling latest changes from main..."
+            git pull origin main
+
+            echo "==> Rebuilding and restarting containers..."
+            if command -v docker-compose >/dev/null 2>&1; then
+              docker-compose up -d --build --remove-orphans
+            else
+              docker compose up -d --build --remove-orphans
+            fi
+
+            echo "==> Pruning unused dangling images..."
+            docker image prune -f
+
+            echo "==> Deployment successfully completed!"
+            docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
