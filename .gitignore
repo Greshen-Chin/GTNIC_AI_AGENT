@@ -84,12 +84,15 @@ share/python-wheels/
 .installed.cfg
 *.egg
 .pytest_cache/
+**/.pytest_cache/
 .coverage
 htmlcov/
 
 # ------------------------------------------------------------------------------
-# TypeScript & Testing Caches
+# Testing Files, Scripts & Test Artifacts
 # ------------------------------------------------------------------------------
+test_e2e.py
+**/test_e2e.py
 *.tsbuildinfo
 next-env.d.ts
 coverage/

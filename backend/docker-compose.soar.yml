@@ -9,10 +9,10 @@ services:
       - .env
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-soar_admin}
-      POSTGRES_PASSWORD: ${PG_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-HackWithGoh}
       POSTGRES_DB: ${POSTGRES_DB:-soar_db}
     ports:
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:5435:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -50,7 +50,7 @@ services:
       - DB_POSTGRESDB_HOST=postgres
       - DB_POSTGRESDB_DATABASE=n8n_db
       - DB_POSTGRESDB_USER=soar_admin
-      - DB_POSTGRESDB_PASSWORD=${PG_PASSWORD}
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD:-HackWithGoh}
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
       - N8N_SECURE_COOKIE=false
       - EXECUTIONS_DATA_SAVE_ON_SUCCESS=none

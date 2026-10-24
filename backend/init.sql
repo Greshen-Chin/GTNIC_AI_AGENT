@@ -1,9 +1,10 @@
 -- Database initialization script for Mini-SOAR GTNIC AI AGENT
 -- Automatically executed when Postgres container starts
 
-CREATE DATABASE n8n_db;
+SELECT 'CREATE DATABASE soar_db' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'soar_db')\gexec
+SELECT 'CREATE DATABASE n8n_db' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'n8n_db')\gexec
 
-\connect n8n_db;
+\connect soar_db;
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS vector;
