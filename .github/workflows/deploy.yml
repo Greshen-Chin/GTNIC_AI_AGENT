@@ -27,23 +27,20 @@ jobs:
           command_timeout: 15m
           script_stop: true
           script: |
-            set -e
-
             echo "==> Navigating to SOAR project directory..."
             cd /home/gtnic/soar
-
+            
             echo "==> Pulling latest changes from main..."
             git pull origin main
-
+            
+            echo "==> Navigating to backend folder..."
+            cd backend
+            
             echo "==> Rebuilding and restarting containers..."
-            if command -v docker-compose >/dev/null 2>&1; then
-              docker-compose up -d --build --remove-orphans
-            else
-              docker compose up -d --build --remove-orphans
-            fi
-
+            sudo docker-compose -f docker-compose.soar.yml up -d --build --remove-orphans
+            
             echo "==> Pruning unused dangling images..."
-            docker image prune -f
-
+            sudo docker image prune -f
+            
             echo "==> Deployment successfully completed!"
-            docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+            sudo docker ps
