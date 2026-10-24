@@ -27,26 +27,21 @@ jobs:
           command_timeout: 15m
           script_stop: true
           script: |
-            echo "==> Navigating to project directory..."
-            cd /home/gtnic/GTNIC_AI_AGENT
+            echo "==> Pindah ke direktori backend utama..."
+            cd /home/gtnic/GTNIC_AI_AGENT/backend
             
-            echo "==> Pulling latest changes from main..."
+            echo "==> Menarik update terbaru dari GitHub..."
             git pull origin main
             
-            echo "==> Melacak lokasi docker-compose.soar.yml otomatis..."
-            COMPOSE_FILE=$(find /home/gtnic/GTNIC_AI_AGENT -name "docker-compose.soar.yml" | head -n 1)
-            
-            if [ -z "$COMPOSE_FILE" ]; then
-              echo "Error: docker-compose.soar.yml tidak ditemukan di dalam /home/gtnic/GTNIC_AI_AGENT!"
+            echo "==> Menjalankan Docker..."
+            if sudo docker compose version >/dev/null 2>&1; then
+              sudo docker compose -f docker-compose.soar.yml up -d --build --remove-orphans
+            elif sudo docker-compose version >/dev/null 2>&1; then
+              sudo docker-compose -f docker-compose.soar.yml up -d --build --remove-orphans
+            else
+              echo "ERROR: Docker Compose belum terinstall di server GCP ini!"
               exit 1
             fi
-            
-            COMPOSE_DIR=$(dirname "$COMPOSE_FILE")
-            echo "==> Pindah ke folder: $COMPOSE_DIR"
-            cd "$COMPOSE_DIR"
-            
-            echo "==> Menjalankan Docker..."
-            sudo docker-compose -f docker-compose.soar.yml up -d --build --remove-orphans
             
             echo "==> Membersihkan cache Docker..."
             sudo docker image prune -f
