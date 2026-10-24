@@ -10,7 +10,7 @@ from google.genai import types
 
 from app.config import settings
 from app.services.vertex_service import get_vertex_client
-from app.services.wazuh_service import search_alerts_by_ip, fetch_login_history
+from app.services.wazuh_service import search_alerts_by_ip, fetch_login_history, inspect_web_attack
 from app.services.rag_service import search_mitre_owasp_rag
 from app.database import db_insert_incident
 
@@ -52,7 +52,7 @@ def extract_alert_facts(alert: Dict[str, Any]) -> Tuple[List[str], str, int]:
 
 def execute_tool(tool_name: str, args: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Executes one of the 3 approved read-only tools and records execution duration and facts.
+    Executes one of the 4 approved read-only tools and records execution duration and facts.
     """
     start_t = time.perf_counter()
     status = "success"
@@ -66,6 +66,11 @@ def execute_tool(tool_name: str, args: Dict[str, Any]) -> Dict[str, Any]:
         elif tool_name == "get_login_history":
             srcip = args.get("srcip", "")
             result = fetch_login_history(srcip)
+        elif tool_name == "inspect_web_attack":
+            srcip = args.get("srcip", "")
+            attack_type = args.get("attack_type", "all")
+            time_window = args.get("time_window", "now-24h")
+            result = inspect_web_attack(srcip=srcip, attack_type=attack_type, time_window=time_window)
         elif tool_name == "mitre_owasp_rag":
             query = args.get("query", "")
             result = search_mitre_owasp_rag(query, top_k=4)
@@ -301,6 +306,18 @@ def _run_vertex_toolcalling_loop(
                 }
             ),
             types.FunctionDeclaration(
+                name="inspect_web_attack",
+                description="Deeply inspect web traffic logs for SQL Injection (SQLi) and Cross-Site Scripting (XSS) payloads, target parameters, HTTP status (500=Database Error, 403=WAF blocked, 200=Served), and defensive headers.",
+                parameters={
+                    "type": "OBJECT",
+                    "properties": {
+                        "srcip": {"type": "STRING", "description": "The IPv4 address to inspect"},
+                        "attack_type": {"type": "STRING", "description": "Optional filter: 'all', 'sqli', or 'xss'"}
+                    },
+                    "required": ["srcip"]
+                }
+            ),
+            types.FunctionDeclaration(
                 name="mitre_owasp_rag",
                 description="Retrieve MITRE ATT&CK technique and OWASP Top 10 knowledge relevant to this attack.",
                 parameters={
@@ -385,20 +402,96 @@ def _run_local_triage(
 ) -> Dict[str, Any]:
     """
     Executes tools locally when Vertex AI is offline so testing and demo remain reliable.
+    Supports SSH brute force, SQL Injection, and Cross-Site Scripting (XSS).
     """
+    lower_desc = rule_desc.lower()
+    is_sqli = any(w in lower_desc or w in str(rule_id) for w in ["sql", "injection", "union", "100101", "100102", "31101", "31102"])
+    is_xss = any(w in lower_desc or w in str(rule_id) for w in ["xss", "script", "cross-site", "31105", "31106", "31508"])
+
     if not tool_trace:
         tool_trace.append(execute_tool("search_alerts_by_ip", {"srcip": srcip}))
-        tool_trace.append(execute_tool("get_login_history", {"srcip": srcip}))
-        tool_trace.append(execute_tool("mitre_owasp_rag", {"query": f"{rule_desc} attack"}))
+        if is_sqli:
+            tool_trace.append(execute_tool("inspect_web_attack", {"srcip": srcip, "attack_type": "sqli"}))
+            tool_trace.append(execute_tool("mitre_owasp_rag", {"query": f"SQL Injection {rule_desc} attack"}))
+        elif is_xss:
+            tool_trace.append(execute_tool("inspect_web_attack", {"srcip": srcip, "attack_type": "xss"}))
+            tool_trace.append(execute_tool("mitre_owasp_rag", {"query": f"Cross-Site Scripting XSS {rule_desc} attack"}))
+        else:
+            tool_trace.append(execute_tool("get_login_history", {"srcip": srcip}))
+            tool_trace.append(execute_tool("mitre_owasp_rag", {"query": f"{rule_desc} attack"}))
 
     all_facts = [f for t in tool_trace for f in t.get("facts", [])]
-    failed_fact = next((f for f in all_facts if f.startswith("failed_count=")), "failed_count=0")
     alert_fact = next((f for f in all_facts if f.startswith("alert_count=")), "alert_count=1")
     doc_fact = next((f for f in all_facts if f.startswith("doc:")), "doc:1")
     mitre_fact = next((f for f in all_facts if f.startswith("mitre:")), "mitre:T1190")
 
+    if is_sqli:
+        sqli_detected = "sqli_detected=true" in all_facts
+        db_error = "database_error_reflected=true" in all_facts
+        http_500 = next((f for f in all_facts if f.startswith("http_500_count=")), None)
+        target_param = next((f for f in all_facts if f.startswith("target_param=")), "target_param=id")
+
+        status = "confirmed" if (sqli_detected and db_error) or "100101" in str(rule_id) else "likely" if sqli_detected else "uncertain"
+        pro_ev = []
+        if "sqli_detected=true" in all_facts:
+            pro_ev.append({"claim": "Deteksi pola sintaksis SQL Injection (UNION / Boolean-based)", "tool": "inspect_web_attack", "evidence_ref": "sqli_detected=true"})
+        if db_error and http_500:
+            pro_ev.append({"claim": "Terdeteksi kesalahan eksekusi database internal (HTTP 500)", "tool": "inspect_web_attack", "evidence_ref": "database_error_reflected=true"})
+        elif alert_fact:
+            pro_ev.append({"claim": f"Volume alert terkait dari IP sumber ({alert_fact})", "tool": "search_alerts_by_ip", "evidence_ref": alert_fact})
+
+        contra_ev = []
+        if "waf_mitigated=true" in all_facts:
+            contra_ev.append({"claim": "Serangan berhasil dimitigasi penuh oleh WAF (HTTP 403)", "tool": "inspect_web_attack", "evidence_ref": "waf_mitigated=true"})
+
+        return {
+            "status": status,
+            "summary": f"Investigasi serangan SQL Injection dari {srcip} menargetkan parameter {target_param.replace('target_param=', '')}.",
+            "attack_story": [
+                {"step": 1, "event": f"Trafik HTTP mencurigakan diterima dari {srcip}"},
+                {"step": 2, "event": f"Ditemukan payload injeksi SQL pada request ({target_param})"},
+                {"step": 3, "event": "Server backend mengalami gangguan database eksekusi query (HTTP 500)" if db_error else "Request tercatat di log web"}
+            ],
+            "pro_evidence": pro_ev,
+            "contra_evidence": contra_ev,
+            "mitre": [{"id": mitre_fact.replace("mitre:", ""), "name": "Exploit Public-Facing Application (SQLi)", "doc_ref": doc_fact}],
+            "recommended_action": "Terapkan Prepared Statements (parameterized queries), blokir IP di WAF, dan matikan verbose database error messages."
+        }
+
+    elif is_xss:
+        xss_detected = "xss_detected=true" in all_facts
+        http_200 = next((f for f in all_facts if f.startswith("http_200_count=")), None)
+        target_param = next((f for f in all_facts if f.startswith("target_param=")), "target_param=query")
+
+        status = "confirmed" if xss_detected and http_200 else "likely" if xss_detected else "uncertain"
+        pro_ev = []
+        if "xss_detected=true" in all_facts:
+            pro_ev.append({"claim": "Deteksi payload Cross-Site Scripting (XSS tag/event handler)", "tool": "inspect_web_attack", "evidence_ref": "xss_detected=true"})
+        if "csp_enforced=false" in all_facts:
+            pro_ev.append({"claim": "Pertahanan browser Content Security Policy (CSP) belum aktif", "tool": "inspect_web_attack", "evidence_ref": "csp_enforced=false"})
+
+        contra_ev = []
+        if "waf_mitigated=true" in all_facts:
+            contra_ev.append({"claim": "Percobaan XSS berhasil diblokir oleh WAF", "tool": "inspect_web_attack", "evidence_ref": "waf_mitigated=true"})
+
+        return {
+            "status": status,
+            "summary": f"Investigasi serangan Cross-Site Scripting (XSS) dari {srcip} pada parameter {target_param.replace('target_param=', '')}.",
+            "attack_story": [
+                {"step": 1, "event": f"Permintaan HTTP berisi script JavaScript berbahaya dikirim dari {srcip}"},
+                {"step": 2, "event": f"Payload XSS terdeteksi pada parameter input web ({target_param})"},
+                {"step": 3, "event": "Respons HTTP 200 disajikan tanpa proteksi CSP aktif"}
+            ],
+            "pro_evidence": pro_ev,
+            "contra_evidence": contra_ev,
+            "mitre": [{"id": mitre_fact.replace("mitre:", ""), "name": "Command and Scripting Interpreter: JavaScript", "doc_ref": doc_fact}],
+            "recommended_action": "Aktifkan Content Security Policy (CSP), terapkan Context-aware HTML entity encoding, dan pasang flag HttpOnly pada semua session cookie."
+        }
+
+    # Default: SSH / Brute Force
+    failed_fact = next((f for f in all_facts if f.startswith("failed_count=")), "failed_count=0")
     failed_val = int(failed_fact.split("=")[1]) if "=" in failed_fact else 0
-    status = "confirmed" if failed_val >= 5 or "100101" in str(rule_id) else "likely" if failed_val > 0 else "uncertain"
+    status = "confirmed" if failed_val >= 5 else "likely" if failed_val > 0 else "uncertain"
 
     return {
         "status": status,
@@ -412,6 +505,7 @@ def _run_local_triage(
             {"claim": f"Authentication anomalies ({failed_fact})", "tool": "get_login_history", "evidence_ref": failed_fact}
         ],
         "contra_evidence": [],
-        "mitre": [{"id": mitre_fact.replace("mitre:", ""), "name": "Security Pattern", "doc_ref": doc_fact}],
+        "mitre": [{"id": mitre_fact.replace("mitre:", ""), "name": "Brute Force Pattern", "doc_ref": doc_fact}],
         "recommended_action": f"Review source IP {srcip} and throttle rate."
     }
+

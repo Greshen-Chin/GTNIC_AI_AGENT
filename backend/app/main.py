@@ -88,6 +88,7 @@ def root():
             "internal_tools": [
                 "POST /internal/tools/search_alerts_by_ip",
                 "POST /internal/tools/get_login_history",
+                "POST /internal/tools/inspect_web_attack",
                 "POST /internal/tools/mitre_owasp_rag",
                 "POST /internal/agent/investigate"
             ],

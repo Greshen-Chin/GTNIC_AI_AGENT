@@ -75,3 +75,50 @@ class RagResponse(BaseModel):
         description="Deterministic factual strings referenced by the AI Agent (e.g. doc:42, mitre:T1110, owasp:A07)"
     )
     matches: List[RagMatchItem]
+
+
+class WebAttackIn(IpIn):
+    attack_type: str = Field(
+        default="all",
+        description="Filter by attack vector: 'all', 'sqli', or 'xss'"
+    )
+    time_window: str = Field(
+        default="now-24h",
+        description="Time window for OpenSearch query (e.g. 'now-24h', 'now-1h')"
+    )
+
+
+class SqlAttackDetail(BaseModel):
+    detected: bool = False
+    sqli_types: List[str] = Field(default_factory=list, description="e.g. union_based, boolean_based, error_based, time_based")
+    sample_payloads: List[str] = Field(default_factory=list)
+    targeted_parameters: List[str] = Field(default_factory=list)
+    database_error_reflected: bool = False
+
+
+class XssAttackDetail(BaseModel):
+    detected: bool = False
+    xss_types: List[str] = Field(default_factory=list, description="e.g. reflected_script_tag, event_handler_attribute, javascript_pseudo_protocol")
+    sample_payloads: List[str] = Field(default_factory=list)
+    targeted_parameters: List[str] = Field(default_factory=list)
+    csp_enforced: bool = False
+    httponly_protected: bool = False
+
+
+class InspectWebAttackResponse(BaseModel):
+    srcip: str
+    total_web_alerts: int
+    attack_type_queried: str
+    status_breakdown: Dict[str, int] = Field(
+        default_factory=dict,
+        description="HTTP Response status counts, e.g. {'200': 5, '403': 12, '500': 3}"
+    )
+    endpoints_targeted: List[str] = Field(default_factory=list)
+    sqli: SqlAttackDetail = Field(default_factory=SqlAttackDetail)
+    xss: XssAttackDetail = Field(default_factory=XssAttackDetail)
+    waf_mitigated: bool = False
+    facts: List[str] = Field(
+        ...,
+        description="Deterministic factual strings referenced by the AI Agent (e.g. sqli_detected=true, http_500_count=3, target_param=id)"
+    )
+

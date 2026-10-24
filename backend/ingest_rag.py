@@ -51,15 +51,30 @@ OWASP_TOP_10 = [
         "metadata": {"category": "A02:2021", "name": "Cryptographic Failures", "owasp_id": "A02:2021"}
     },
     {
-        "id": "A03:2021",
-        "name": "Injection",
+        "id": "A03:2021-SQLi",
+        "name": "Injection: SQL Injection (SQLi)",
         "content": (
-            "OWASP A03:2021 - Injection (SQL Injection, Command Injection, Cross-Site Scripting). "
-            "An application is vulnerable to injection when user-supplied data is not validated, filtered, or sanitized by the application before inclusion in commands or queries. "
-            "Symptoms include UNION SELECT queries, ' OR 1=1-- statements, unexpected SQL syntax error messages, and arbitrary shell command execution. "
-            "Mitigation: Use safe API parameterized queries (Prepared Statements), ORMs, and strict context-aware input validation."
+            "OWASP A03:2021 - SQL Injection (SQLi). "
+            "SQL injection occurs when untrusted user data is concatenated into database queries without parameterized statements. "
+            "Attack types include Union-based SQLi (UNION SELECT null, username, password), Boolean-based blind SQLi (' OR '1'='1), "
+            "Error-based SQLi, and Time-based blind SQLi (SLEEP(5), pg_sleep). "
+            "Symptoms: HTTP status 500 database syntax errors, unexpected data reflection, unexpected latency spikes. "
+            "Mitigation: Enforce Prepared Statements (parameterized queries) across all ORMs and SQL drivers, input validation, and WAF rules."
         ),
-        "metadata": {"category": "A03:2021", "name": "Injection", "owasp_id": "A03:2021"}
+        "metadata": {"category": "A03:2021", "name": "SQL Injection", "owasp_id": "A03:2021"}
+    },
+    {
+        "id": "A03:2021-XSS",
+        "name": "Injection: Cross-Site Scripting (XSS)",
+        "content": (
+            "OWASP A03:2021 - Cross-Site Scripting (XSS). "
+            "XSS flaws occur whenever an application includes untrusted data in a web page without proper validation or escaping. "
+            "Variants include Reflected XSS (<script>alert(1)</script>, onerror=, onload= event handlers), Stored XSS (persistent comments), "
+            "and DOM-based XSS (eval, document.location, innerHTML manipulation). "
+            "Attacker goals: Session hijacking (document.cookie theft), credential phishing, unauthorized actions. "
+            "Mitigation: Implement strict Content Security Policy (CSP: default-src 'self'), Context-aware HTML entity encoding, and HttpOnly cookie flags."
+        ),
+        "metadata": {"category": "A03:2021", "name": "Cross-Site Scripting", "owasp_id": "A03:2021"}
     },
     {
         "id": "A07:2021",
@@ -94,6 +109,18 @@ def fetch_curated_mitre_techniques():
             "metadata": {"external_id": "T1190", "name": "Exploit Public-Facing Application", "tactic": "Initial Access"}
         },
         {
+            "external_id": "T1059.007",
+            "name": "Command and Scripting Interpreter: JavaScript (XSS)",
+            "tactic": "Execution",
+            "content": (
+                "MITRE ATT&CK T1059.007: JavaScript. "
+                "Adversaries may abuse JavaScript to execute arbitrary code or scripts within victim browsers or server environments. "
+                "In Cross-Site Scripting (XSS), malicious scripts run in the context of the user's browser to hijack sessions or steal sensitive tokens. "
+                "Mitigation: Content Security Policy (CSP), disable eval/inline scripts, set HttpOnly and SameSite flags on session cookies."
+            ),
+            "metadata": {"external_id": "T1059.007", "name": "JavaScript (XSS)", "tactic": "Execution"}
+        },
+        {
             "external_id": "T1110",
             "name": "Brute Force",
             "tactic": "Credential Access",
@@ -105,17 +132,6 @@ def fetch_curated_mitre_techniques():
                 "Mitigation: Rate limiting, IP throttling, CAPTCHA, and account lockout."
             ),
             "metadata": {"external_id": "T1110", "name": "Brute Force", "tactic": "Credential Access"}
-        },
-        {
-            "external_id": "T1059",
-            "name": "Command and Scripting Interpreter",
-            "tactic": "Execution",
-            "content": (
-                "MITRE ATT&CK T1059: Command and Scripting Interpreter. "
-                "Adversaries may abuse interpreters like Bash, PowerShell, or Python to execute malicious code. "
-                "Mitigation: Restrict script execution, enable detailed process execution logs."
-            ),
-            "metadata": {"external_id": "T1059", "name": "Command and Scripting Interpreter", "tactic": "Execution"}
         },
         {
             "external_id": "T1595",

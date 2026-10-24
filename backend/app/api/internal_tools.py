@@ -9,12 +9,14 @@ from app.schemas.tools import (
     LoginHistoryResponse,
     RagQueryIn,
     RagResponse,
+    WebAttackIn,
+    InspectWebAttackResponse,
 )
 from app.schemas.incident import (
     AgentInvestigateRequest,
     AgentInvestigateResponse,
 )
-from app.services.wazuh_service import search_alerts_by_ip, fetch_login_history
+from app.services.wazuh_service import search_alerts_by_ip, fetch_login_history, inspect_web_attack
 from app.services.rag_service import search_mitre_owasp_rag
 from app.services.agent_service import investigate_alert
 
@@ -64,6 +66,22 @@ def api_get_login_history(payload: IpIn):
 def api_mitre_owasp_rag(payload: RagQueryIn):
     logger.info(f"Tool mitre_owasp_rag called with query: '{payload.query}' (top_k={payload.top_k})")
     result = search_mitre_owasp_rag(query=payload.query, top_k=payload.top_k)
+    return result
+
+
+@router.post(
+    "/tools/inspect_web_attack",
+    response_model=InspectWebAttackResponse,
+    summary="Tool 4: Deep inspection for SQL Injection (SQLi) & Cross-Site Scripting (XSS)",
+    description="Inspects web alerts for SQLi & XSS payloads, target parameters, HTTP status (500=DB error, 403=WAF, 200=served) and defensive headers."
+)
+def api_inspect_web_attack(payload: WebAttackIn):
+    logger.info(f"Tool inspect_web_attack called for {payload.srcip} (type={payload.attack_type})")
+    result = inspect_web_attack(
+        srcip=payload.srcip,
+        attack_type=payload.attack_type,
+        time_window=payload.time_window
+    )
     return result
 
 
