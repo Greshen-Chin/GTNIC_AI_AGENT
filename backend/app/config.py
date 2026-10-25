@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "GTNIC SOAR-API"
     APP_ENV: str = "production"
     DEBUG: bool = False
+    ALLOW_SIMULATION: bool = False
 
 
 settings = Settings()

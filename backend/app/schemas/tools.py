@@ -39,6 +39,7 @@ class SearchAlertsResponse(BaseModel):
     total_hits: int
     rule_ids: List[str]
     alerts: List[Dict[str, Any]] = Field(default_factory=list)
+    provenance: Optional[Dict[str, Any]] = None
 
 
 class LoginHistoryResponse(BaseModel):
@@ -50,6 +51,7 @@ class LoginHistoryResponse(BaseModel):
         ...,
         description="Deterministic factual strings referenced by the AI Agent (e.g. failed_count=10, success_count=0)"
     )
+    provenance: Optional[Dict[str, Any]] = None
 
 
 class RagQueryIn(BaseModel):
@@ -121,4 +123,5 @@ class InspectWebAttackResponse(BaseModel):
         ...,
         description="Deterministic factual strings referenced by the AI Agent (e.g. sqli_detected=true, http_500_count=3, target_param=id)"
     )
+    provenance: Optional[Dict[str, Any]] = None
 

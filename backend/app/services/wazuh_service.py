@@ -7,6 +7,42 @@ from app.config import settings
 
 logger = logging.getLogger("soar-api.wazuh")
 
+
+class IndexerUnavailable(Exception):
+    pass
+
+
+_STATUS_IN_LOG = re.compile(r'HTTP/[\d.]+"\s+(\d{3})\s')
+
+
+def extract_http_status(alert: Dict[str, Any]) -> Optional[str]:
+    """Kode status HTTP dari alert Wazuh. Dari full_log dulu, lalu data.status (data uji),
+    lalu data.id (decoder web-accesslog). Tidak ada default: tidak diketahui = None."""
+    m = _STATUS_IN_LOG.search(alert.get("full_log", "") or "")
+    if m:
+        return m.group(1)
+    data = alert.get("data", {}) or {}
+    if re.fullmatch(r"\d{3}", str(data.get("status", ""))):
+        return str(data["status"])
+    if (alert.get("decoder", {}) or {}).get("name", "").startswith("web-accesslog") \
+            and re.fullmatch(r"\d{3}", str(data.get("id", ""))):
+        return str(data["id"])
+    return None
+
+
+def _prov(res: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """Provenance: bukti bahwa data benar-benar dibaca dari Wazuh Indexer."""
+    if res is None:
+        return {"source": "simulation"}
+    hits = res.get("hits", {}).get("hits", [])
+    return {
+        "source": "wazuh-indexer",
+        "took_ms": res.get("took"),
+        "indices": sorted({h.get("_index", "") for h in hits}),
+        "doc_ids": [h.get("_id") for h in hits][:20],
+    }
+
+
 # Regex patterns for SQL Injection classification
 SQLI_PATTERNS = {
     "union_based": re.compile(r"(?i)\bunion\s+(all\s+)?select\b"),
@@ -28,24 +64,19 @@ XSS_PATTERNS = {
 
 
 def query_indexer(body: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """
-    Executes search query against Wazuh Indexer OpenSearch endpoint
-    using INDEXER_URL, INDEXER_USER, and INDEXER_PASSWORD from .env.
-    """
+    """Query ke Wazuh Indexer. Gagal = IndexerUnavailable, KECUALI ALLOW_SIMULATION=true (khusus pytest)."""
     url = f"{settings.INDEXER_URL.rstrip('/')}/wazuh-alerts-*/_search"
     auth = (settings.INDEXER_USER, settings.INDEXER_PASSWORD) if settings.INDEXER_PASSWORD else None
-
     try:
         with httpx.Client(verify=settings.INDEXER_VERIFY_SSL, timeout=10.0) as client:
             resp = client.post(url, json=body, auth=auth)
             resp.raise_for_status()
             return resp.json()
     except Exception as e:
-        logger.warning(
-            f"Wazuh Indexer query to {url} failed: {e}. "
-            "Using lab scenario fallback for local/offline testing."
-        )
-        return None
+        logger.error("Wazuh Indexer query to %s failed: %s", url, e)
+        if settings.ALLOW_SIMULATION:
+            return None
+        raise IndexerUnavailable(str(e)) from e
 
 
 def get_simulated_wazuh_data(srcip: str) -> Dict[str, Any]:
@@ -174,7 +205,7 @@ def fetch_login_history(srcip: str) -> Dict[str, Any]:
                 "filter": [
                     {"term": {"data.srcip": srcip}},
                     {"terms": {"rule.id": ["100100", "100103"]}},
-                    {"range": {"timestamp": {"gte": "now-24h"}}}
+                    {"range": {"@timestamp": {"gte": "now-24h"}}}
                 ]
             }
         },
@@ -184,9 +215,9 @@ def fetch_login_history(srcip: str) -> Dict[str, Any]:
     }
 
     res = query_indexer(body)
-    if res and "aggregations" in res:
-        buckets = res["aggregations"]["r"]["buckets"]
-        counts = {b["key"]: b["doc_count"] for b in buckets}
+    if res is not None:
+        buckets = res.get("aggregations", {}).get("r", {}).get("buckets", [])
+        counts = {str(b["key"]): b["doc_count"] for b in buckets}
         failed = counts.get("100100", 0)
         success = counts.get("100103", 0)
     else:
@@ -205,7 +236,8 @@ def fetch_login_history(srcip: str) -> Dict[str, Any]:
         "failed_count": failed,
         "success_count": success,
         "window": "24h",
-        "facts": facts
+        "facts": facts,
+        "provenance": _prov(res),
     }
 
 
@@ -221,20 +253,21 @@ def search_alerts_by_ip(srcip: str, time_window: str = "now-24h", max_alerts: in
             "bool": {
                 "filter": [
                     {"term": {"data.srcip": srcip}},
-                    {"range": {"timestamp": {"gte": time_window}}}
+                    {"range": {"@timestamp": {"gte": time_window}}}
                 ]
             }
         },
-        "sort": [{"timestamp": {"order": "desc"}}],
+        "sort": [{"@timestamp": {"order": "desc"}}],
         "aggs": {
             "r": {"terms": {"field": "rule.id", "size": 20}}
         }
     }
 
     res = query_indexer(body)
-    if res and "hits" in res:
-        hits = res["hits"]["hits"]
-        total_hits = res["hits"]["total"]["value"] if isinstance(res["hits"]["total"], dict) else res["hits"]["total"]
+    if res is not None:
+        hits = res.get("hits", {}).get("hits", [])
+        total_obj = res.get("hits", {}).get("total", 0)
+        total_hits = total_obj.get("value", 0) if isinstance(total_obj, dict) else int(total_obj or 0)
         buckets = res.get("aggregations", {}).get("r", {}).get("buckets", [])
         rule_ids = [str(b["key"]) for b in buckets]
         alerts = [h.get("_source", {}) for h in hits]
@@ -255,138 +288,104 @@ def search_alerts_by_ip(srcip: str, time_window: str = "now-24h", max_alerts: in
         "facts": facts,
         "total_hits": total_hits,
         "rule_ids": rule_ids,
-        "alerts": alerts[:max_alerts]
+        "alerts": alerts[:max_alerts],
+        "provenance": _prov(res),
     }
 
 
 def inspect_web_attack(srcip: str, attack_type: str = "all", time_window: str = "now-24h") -> Dict[str, Any]:
-    """
-    Tool 4: inspect_web_attack
-    Deep inspection of web traffic logs & Wazuh web alerts for SQL Injection (SQLi) and Cross-Site Scripting (XSS).
-    Parses request URIs, payload signatures, parameter names, and HTTP status codes (500=Database/App Error, 403=WAF blocked, 200=Served).
-    Produces deterministic facts for the AI Agent triage loop.
-    """
     body = {
         "size": 50,
-        "query": {
-            "bool": {
-                "filter": [
-                    {"term": {"data.srcip": srcip}},
-                    {"range": {"timestamp": {"gte": time_window}}}
-                ],
-                "should": [
-                    {"terms": {"rule.groups": ["web", "apache", "nginx", "modsecurity", "sql_injection", "xss", "attacks"]}},
-                    {"wildcard": {"rule.description": "*SQL*"}},
-                    {"wildcard": {"rule.description": "*XSS*"}},
-                    {"wildcard": {"rule.description": "*Injection*"}},
-                    {"terms": {"rule.id": ["100101", "100102", "31101", "31102", "31103", "31104", "31105", "31106", "31508"]}}
-                ],
-                "minimum_should_match": 1
-            }
-        },
-        "sort": [{"timestamp": {"order": "desc"}}]
+        "query": {"bool": {
+            "filter": [
+                {"term": {"data.srcip": srcip}},
+                {"range": {"@timestamp": {"gte": time_window}}}],
+            "should": [
+                {"terms": {"rule.groups": ["web", "attack", "attacks", "sql_injection", "xss", "juiceshop"]}},
+                {"terms": {"rule.id": ["100110", "100101", "100102", "31101", "31102", "31103", "31104", "31105", "31106", "31508"]}}],
+            "minimum_should_match": 1}},
+        "sort": [{"@timestamp": {"order": "desc"}}],
     }
-
     res = query_indexer(body)
-    if res and "hits" in res and res["hits"]["hits"]:
-        alerts = [h.get("_source", {}) for h in res["hits"]["hits"]]
-    else:
-        sim = get_simulated_wazuh_data(srcip)
-        alerts = sim.get("alerts", [])
+    if res is not None:
+        alerts = [h.get("_source", {}) for h in res.get("hits", {}).get("hits", [])]
+    else:  # hanya saat ALLOW_SIMULATION=true (pytest)
+        alerts = get_simulated_wazuh_data(srcip).get("alerts", [])
 
     status_breakdown: Dict[str, int] = {}
     endpoints_set = set()
-    sqli_types_found = set()
-    xss_types_found = set()
-    sqli_payloads = []
-    xss_payloads = []
-    sqli_params = set()
-    xss_params = set()
+    sqli_types, xss_types = set(), set()
+    sqli_payloads, xss_payloads = [], []
+    sqli_params, xss_params = set(), set()
 
     for alt in alerts:
-        data = alt.get("data", {})
+        data = alt.get("data", {}) or {}
         raw_url = data.get("url") or alt.get("url") or alt.get("full_log", "")
-        status_code = str(data.get("status") or alt.get("status") or "200")
-        status_breakdown[status_code] = status_breakdown.get(status_code, 0) + 1
+        code = extract_http_status(alt) or "unknown"
+        status_breakdown[code] = status_breakdown.get(code, 0) + 1
 
-        decoded_url = urllib.parse.unquote(raw_url) if raw_url else ""
-        if decoded_url:
-            parsed = urllib.parse.urlsplit(decoded_url)
-            if parsed.path:
-                endpoints_set.add(parsed.path)
+        decoded = urllib.parse.unquote_plus(raw_url) if raw_url else ""
+        if decoded:
+            try:
+                parsed = urllib.parse.urlsplit(decoded)
+                keys = [k.lower() for k in urllib.parse.parse_qs(parsed.query).keys()]
+                if parsed.path:
+                    endpoints_set.add(parsed.path)
+            except ValueError:
+                keys = []
+            for name, rgx in SQLI_PATTERNS.items():
+                if rgx.search(decoded):
+                    sqli_types.add(name)
+                    sqli_params.update(keys)
+                    if len(sqli_payloads) < 3 and decoded[:120] not in sqli_payloads:
+                        sqli_payloads.append(decoded[:120])
+            for name, rgx in XSS_PATTERNS.items():
+                if rgx.search(decoded):
+                    xss_types.add(name)
+                    xss_params.update(keys)
+                    if len(xss_payloads) < 3 and decoded[:120] not in xss_payloads:
+                        xss_payloads.append(decoded[:120])
 
-            # Extract parameter keys
-            query_parts = urllib.parse.parse_qs(parsed.query)
-            for param_key in query_parts.keys():
-                param_lower = param_key.lower()
-                # Check SQLi
-                for sqli_k, sqli_rgx in SQLI_PATTERNS.items():
-                    if sqli_rgx.search(decoded_url):
-                        sqli_types_found.add(sqli_k)
-                        sqli_params.add(param_lower)
-                        if len(sqli_payloads) < 3 and decoded_url not in sqli_payloads:
-                            sqli_payloads.append(decoded_url[:120])
-                # Check XSS
-                for xss_k, xss_rgx in XSS_PATTERNS.items():
-                    if xss_rgx.search(decoded_url):
-                        xss_types_found.add(xss_k)
-                        xss_params.add(param_lower)
-                        if len(xss_payloads) < 3 and decoded_url not in xss_payloads:
-                            xss_payloads.append(decoded_url[:120])
-
-        # Also inspect rule description if url was not full
-        desc = alt.get("rule", {}).get("description", "").lower()
+        desc = (alt.get("rule", {}).get("description") or "").lower()
         if "sql" in desc:
-            sqli_types_found.add("pattern_in_rule")
-        if "xss" in desc:
-            xss_types_found.add("pattern_in_rule")
+            sqli_types.add("pattern_in_rule")
+        if "xss" in desc or "cross-site" in desc:
+            xss_types.add("pattern_in_rule")
 
-    sqli_detected = len(sqli_types_found) > 0
-    xss_detected = len(xss_types_found) > 0
-    db_error_reflected = status_breakdown.get("500", 0) > 0 and sqli_detected
+    sqli_detected, xss_detected = bool(sqli_types), bool(xss_types)
+    c403, c500 = status_breakdown.get("403", 0), status_breakdown.get("500", 0)
+    c200, cunk = status_breakdown.get("200", 0), status_breakdown.get("unknown", 0)
+    server_error = c500 > 0 and sqli_detected
+    waf_mitigated = c403 > 0 and c500 == 0 and c200 == 0
 
-    count_403 = status_breakdown.get("403", 0)
-    count_500 = status_breakdown.get("500", 0)
-    count_200 = status_breakdown.get("200", 0)
-    waf_mitigated = (count_403 > 0 and count_500 == 0 and count_200 == 0)
+    def primary(types):
+        return next((t for t in sorted(types) if t != "pattern_in_rule"), "pattern_in_rule")
 
-    # Build deterministic facts for AI Agent & Scorer
-    facts: List[str] = [
-        f"total_web_alerts={len(alerts)}"
-    ]
-
+    facts: List[str] = [f"total_web_alerts={len(alerts)}"]
     if sqli_detected:
-        facts.append("sqli_detected=true")
-        facts.append(f"sqli_payload_count={len(sqli_payloads) or len(alerts)}")
-        primary_sqli = list(sqli_types_found)[0] if sqli_types_found else "union_based"
-        facts.append(f"sqli_type={primary_sqli}")
+        facts += ["sqli_detected=true", f"sqli_payload_count={len(sqli_payloads) or len(alerts)}",
+                  f"sqli_type={primary(sqli_types)}"]
         if sqli_params:
-            facts.append(f"target_param={list(sqli_params)[0]}")
-        if db_error_reflected:
-            facts.append(f"http_500_count={count_500}")
-            facts.append("database_error_reflected=true")
-        if count_403 > 0:
-            facts.append(f"http_403_count={count_403}")
-        if count_200 > 0:
-            facts.append(f"http_200_count={count_200}")
+            facts.append(f"target_param={sorted(sqli_params)[0]}")
+        if c500:
+            facts.append(f"http_500_count={c500}")
+        if server_error:
+            facts.append("server_error_on_sqli=true")
     else:
         facts.append("sqli_detected=false")
-
     if xss_detected:
-        facts.append("xss_detected=true")
-        facts.append(f"xss_payload_count={len(xss_payloads) or len(alerts)}")
-        primary_xss = list(xss_types_found)[0] if xss_types_found else "reflected_script_tag"
-        facts.append(f"xss_type={primary_xss}")
+        facts += ["xss_detected=true", f"xss_payload_count={len(xss_payloads) or len(alerts)}",
+                  f"xss_type={primary(xss_types)}"]
         if xss_params:
-            facts.append(f"target_param={list(xss_params)[0]}")
-        if count_200 > 0:
-            facts.append(f"http_200_count={count_200}")
-        if count_403 > 0:
-            facts.append(f"http_403_count={count_403}")
-        facts.append("csp_enforced=false")
+            facts.append(f"target_param={sorted(xss_params)[0]}")
     else:
         facts.append("xss_detected=false")
-
+    if c403:
+        facts.append(f"http_403_count={c403}")
+    if c200:
+        facts.append(f"http_200_count={c200}")
+    if cunk:
+        facts.append(f"http_status_unknown_count={cunk}")
     facts.append(f"waf_mitigated={'true' if waf_mitigated else 'false'}")
 
     return {
@@ -394,22 +393,14 @@ def inspect_web_attack(srcip: str, attack_type: str = "all", time_window: str = 
         "total_web_alerts": len(alerts),
         "attack_type_queried": attack_type,
         "status_breakdown": status_breakdown,
-        "endpoints_targeted": sorted(list(endpoints_set)),
-        "sqli": {
-            "detected": sqli_detected,
-            "sqli_types": sorted(list(sqli_types_found)),
-            "sample_payloads": sqli_payloads,
-            "targeted_parameters": sorted(list(sqli_params)),
-            "database_error_reflected": db_error_reflected
-        },
-        "xss": {
-            "detected": xss_detected,
-            "xss_types": sorted(list(xss_types_found)),
-            "sample_payloads": xss_payloads,
-            "targeted_parameters": sorted(list(xss_params)),
-            "csp_enforced": False,
-            "httponly_protected": False
-        },
+        "endpoints_targeted": sorted(endpoints_set),
+        "sqli": {"detected": sqli_detected, "sqli_types": sorted(sqli_types),
+                 "sample_payloads": sqli_payloads, "targeted_parameters": sorted(sqli_params),
+                 "database_error_reflected": server_error},
+        "xss": {"detected": xss_detected, "xss_types": sorted(xss_types),
+                "sample_payloads": xss_payloads, "targeted_parameters": sorted(xss_params),
+                "csp_enforced": False, "httponly_protected": False},
         "waf_mitigated": waf_mitigated,
-        "facts": facts
+        "facts": facts,
+        "provenance": _prov(res),
     }
