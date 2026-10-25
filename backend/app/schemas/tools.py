@@ -28,6 +28,7 @@ class IpIn(BaseModel):
 class SearchAlertsIn(IpIn):
     time_window: str = Field(default="now-24h", description="Time window for OpenSearch query")
     max_alerts: int = Field(default=20, ge=1, le=50, description="Max alerts to retrieve")
+    exclude_id: Optional[str] = Field(default=None, description="Optional alert ID to exclude from other_alert_count correlation")
 
 
 class SearchAlertsResponse(BaseModel):
@@ -37,6 +38,7 @@ class SearchAlertsResponse(BaseModel):
         description="Deterministic factual strings referenced by the AI Agent (e.g. alert_count=12, distinct_rules=3)"
     )
     total_hits: int
+    other_alert_count: Optional[int] = None
     rule_ids: List[str]
     alerts: List[Dict[str, Any]] = Field(default_factory=list)
     provenance: Optional[Dict[str, Any]] = None

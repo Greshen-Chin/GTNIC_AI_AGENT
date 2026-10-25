@@ -241,7 +241,8 @@ def fetch_login_history(srcip: str) -> Dict[str, Any]:
     }
 
 
-def search_alerts_by_ip(srcip: str, time_window: str = "now-24h", max_alerts: int = 20) -> Dict[str, Any]:
+def search_alerts_by_ip(srcip: str, time_window: str = "now-24h", max_alerts: int = 20,
+                        exclude_id: Optional[str] = None) -> Dict[str, Any]:
     """
     Tool: search_alerts_by_ip
     Queries Wazuh Indexer for alerts matching IP within time_window.
@@ -270,15 +271,23 @@ def search_alerts_by_ip(srcip: str, time_window: str = "now-24h", max_alerts: in
         total_hits = total_obj.get("value", 0) if isinstance(total_obj, dict) else int(total_obj or 0)
         buckets = res.get("aggregations", {}).get("r", {}).get("buckets", [])
         rule_ids = [str(b["key"]) for b in buckets]
-        alerts = [h.get("_source", {}) for h in hits]
+        alerts = []
+        for h in hits:
+            src = h.get("_source", {})
+            if "_id" not in src and "_id" in h:
+                src["_id"] = h["_id"]
+            alerts.append(src)
     else:
         sim = get_simulated_wazuh_data(srcip)
         alerts = sim["alerts"]
         total_hits = len(alerts)
         rule_ids = list(set(a.get("rule", {}).get("id", "100000") for a in alerts))
 
+    others = [a for a in alerts if not exclude_id or (str(a.get("id")) != str(exclude_id) and str(a.get("_id")) != str(exclude_id))]
+
     facts = [
         f"alert_count={total_hits}",
+        f"other_alert_count={len(others)}",
         f"distinct_rules={len(rule_ids)}",
         f"rule_ids={','.join(rule_ids) if rule_ids else 'none'}"
     ]
@@ -287,6 +296,7 @@ def search_alerts_by_ip(srcip: str, time_window: str = "now-24h", max_alerts: in
         "srcip": srcip,
         "facts": facts,
         "total_hits": total_hits,
+        "other_alert_count": len(others),
         "rule_ids": rule_ids,
         "alerts": alerts[:max_alerts],
         "provenance": _prov(res),

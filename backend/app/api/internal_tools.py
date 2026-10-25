@@ -40,7 +40,8 @@ def api_search_alerts_by_ip(payload: SearchAlertsIn):
     result = search_alerts_by_ip(
         srcip=payload.srcip,
         time_window=payload.time_window,
-        max_alerts=payload.max_alerts
+        max_alerts=payload.max_alerts,
+        exclude_id=payload.exclude_id
     )
     return result
 
