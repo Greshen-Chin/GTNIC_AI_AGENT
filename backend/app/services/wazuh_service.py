@@ -396,7 +396,8 @@ def inspect_web_attack(srcip: str, attack_type: str = "all", time_window: str = 
         facts.append(f"http_200_count={c200}")
     if cunk:
         facts.append(f"http_status_unknown_count={cunk}")
-    facts.append(f"waf_mitigated={'true' if waf_mitigated else 'false'}")
+    if waf_mitigated:
+        facts.append("block_observed=true")
 
     return {
         "srcip": srcip,

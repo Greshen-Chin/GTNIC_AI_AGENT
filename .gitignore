@@ -90,20 +90,6 @@ share/python-wheels/
 htmlcov/
 
 # ------------------------------------------------------------------------------
-# Testing Files, Scripts & Test Artifacts
-# ------------------------------------------------------------------------------
-test_e2e.py
-**/test_e2e.py
-*.tsbuildinfo
-next-env.d.ts
-coverage/
-**/coverage/
-.nyc_output/
-.playwright/
-playwright-report/
-test-results/
-
-# ------------------------------------------------------------------------------
 # Operating System & Filesystem Junk
 # ------------------------------------------------------------------------------
 .DS_Store
