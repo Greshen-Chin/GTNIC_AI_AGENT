@@ -17,8 +17,8 @@ SWR caches. Missing optional backend details remain empty or unknown. Existing
 components, visual styles, and animations are retained; unused imports and JSX
 label syntax were cleaned up to satisfy lint.
 
-The existing `vercel.json` now maps `/api/:path*` to
-`http://34.101.129.120:8000/api/:path*`. The backend already uses `/api`, so this
+`vercel.json` maps `/api/:path*` to
+`https://api.flummox.cloud/api/:path*`. The backend already uses `/api`, so this
 preserves the prefix exactly once. Local Next.js uses the same rewrite rules.
 There are no conflicting API route handlers. Middleware adds the server-only
 `DASHBOARD_API_KEY` to upstream request headers and disables API response caching.
