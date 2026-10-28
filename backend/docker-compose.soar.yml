@@ -25,7 +25,7 @@ services:
     container_name: soar-api
     restart: always
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:8080:8000"
     env_file:
       - .env
     environment:
@@ -36,6 +36,15 @@ services:
     networks:
       - single-node_default
     mem_limit: 256m
+
+  juice-shop:
+    image: bkimminich/juice-shop:latest
+    container_name: soar-juice-shop
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks:
+      - single-node_default
 
   n8n:
     image: n8nio/n8n:${N8N_VERSION:-2.44.6}
