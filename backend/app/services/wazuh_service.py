@@ -2,6 +2,7 @@ import re
 import urllib.parse
 import logging
 from typing import Dict, Any, List, Optional
+from datetime import datetime, timedelta, timezone
 import httpx
 from app.config import settings
 
@@ -10,6 +11,26 @@ logger = logging.getLogger("soar-api.wazuh")
 
 class IndexerUnavailable(Exception):
     pass
+
+
+def alert_time(alert: Dict[str, Any]) -> Optional[datetime]:
+    ts = alert.get("@timestamp") or alert.get("timestamp")
+    if not ts:
+        return None
+    s = re.sub(r"([+-]\d{2})(\d{2})$", r"\1:\2", str(ts).replace("Z", "+00:00"))
+    try:
+        dt = datetime.fromisoformat(s)
+    except ValueError:
+        return None
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+def time_range(anchor: Optional[datetime], hours: int = 24) -> Dict[str, str]:
+    if anchor is None:
+        return {"gte": f"now-{hours}h"}
+    fmt = "%Y-%m-%dT%H:%M:%SZ"
+    a = anchor.astimezone(timezone.utc)
+    return {"gte": (a - timedelta(hours=hours)).strftime(fmt), "lte": (a + timedelta(minutes=10)).strftime(fmt)}
 
 
 _STATUS_IN_LOG = re.compile(r'HTTP/[\d.]+"\s+(\d{3})\s')
@@ -192,7 +213,7 @@ def get_simulated_wazuh_data(srcip: str) -> Dict[str, Any]:
     }
 
 
-def fetch_login_history(srcip: str) -> Dict[str, Any]:
+def fetch_login_history(srcip: str, anchor: Optional[datetime] = None) -> Dict[str, Any]:
     """
     Tool: get_login_history
     Queries Wazuh Indexer for rule 100100 (failed) vs 100103 (successful) per IP in last 24h.
@@ -205,7 +226,7 @@ def fetch_login_history(srcip: str) -> Dict[str, Any]:
                 "filter": [
                     {"term": {"data.srcip": srcip}},
                     {"terms": {"rule.id": ["100100", "100103"]}},
-                    {"range": {"@timestamp": {"gte": "now-24h"}}}
+                    {"range": {"@timestamp": time_range(anchor)}}
                 ]
             }
         },
@@ -242,7 +263,7 @@ def fetch_login_history(srcip: str) -> Dict[str, Any]:
 
 
 def search_alerts_by_ip(srcip: str, time_window: str = "now-24h", max_alerts: int = 20,
-                        exclude_id: Optional[str] = None) -> Dict[str, Any]:
+                        exclude_id: Optional[str] = None, anchor: Optional[datetime] = None) -> Dict[str, Any]:
     """
     Tool: search_alerts_by_ip
     Queries Wazuh Indexer for alerts matching IP within time_window.
@@ -254,7 +275,7 @@ def search_alerts_by_ip(srcip: str, time_window: str = "now-24h", max_alerts: in
             "bool": {
                 "filter": [
                     {"term": {"data.srcip": srcip}},
-                    {"range": {"@timestamp": {"gte": time_window}}}
+                    {"range": {"@timestamp": time_range(anchor)}}
                 ]
             }
         },
@@ -303,13 +324,13 @@ def search_alerts_by_ip(srcip: str, time_window: str = "now-24h", max_alerts: in
     }
 
 
-def inspect_web_attack(srcip: str, attack_type: str = "all", time_window: str = "now-24h") -> Dict[str, Any]:
+def inspect_web_attack(srcip: str, attack_type: str = "all", time_window: str = "now-24h", anchor: Optional[datetime] = None) -> Dict[str, Any]:
     body = {
         "size": 50,
         "query": {"bool": {
             "filter": [
                 {"term": {"data.srcip": srcip}},
-                {"range": {"@timestamp": {"gte": time_window}}}],
+                {"range": {"@timestamp": time_range(anchor)}}],
             "should": [
                 {"terms": {"rule.groups": ["web", "attack", "attacks", "sql_injection", "xss", "juiceshop"]}},
                 {"terms": {"rule.id": ["100110", "100101", "100102", "31101", "31102", "31103", "31104", "31105", "31106", "31508"]}}],
