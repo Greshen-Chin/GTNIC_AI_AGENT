@@ -86,7 +86,7 @@ Browser requests use these same-origin endpoints:
 | Dashboard statistics | GET | `/api/stats` | `/api/stats` |
 
 `vercel.json` rewrites `/api/:path*` to
-`http://34.101.129.120:8000/api/:path*`, preserving the backend's `/api` prefix,
+`https://api.flummox.cloud/api/:path*`, preserving the backend's `/api` prefix,
 request method, body, and query string. `next.config.mjs` reads the same rules for
 local development and `next start`. There are no competing Next.js API handlers.
 The browser stays on the frontend's HTTPS origin. Middleware adds the dashboard
