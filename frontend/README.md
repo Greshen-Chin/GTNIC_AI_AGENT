@@ -86,13 +86,14 @@ Browser requests use these same-origin endpoints:
 | Dashboard statistics | GET | `/api/stats` | `/api/stats` |
 
 `vercel.json` rewrites `/api/:path*` to
-`http://34.101.129.120:8000/api/:path*`, preserving the backend's `/api` prefix,
+`https://api.flummox.cloud/api/:path*`, preserving the backend's `/api` prefix,
 request method, body, and query string. `next.config.mjs` reads the same rules for
 local development and `next start`. There are no competing Next.js API handlers.
-The browser stays on the frontend's HTTPS origin. Middleware adds the dashboard
-key to the upstream request; the key is not included in browser JavaScript or
-response headers. Missing server credentials produce HTTP 503; upstream errors
-remain errors and do not trigger a fallback to demo incidents.
+The browser stays on the frontend's HTTPS origin while Vercel proxies requests
+to the Cloudflare Tunnel hostname. Middleware adds the dashboard key to the
+upstream request; the key is not included in browser JavaScript or response
+headers. Missing server credentials produce HTTP 503; upstream errors remain
+errors and do not trigger a fallback to demo incidents.
 
 Data fetching runs through SWR in Client Components after hydration, so relative
 URLs are not passed to Node.js server-side `fetch` during builds or rendering.
@@ -102,9 +103,12 @@ Approve/Reject records the analyst decision; it does not itself enforce firewall
 rules. The existing mock fixtures remain available as reference data but are no
 longer used by the live dashboard.
 
-The GCP backend must be reachable from Vercel on port 8000. A successful frontend
-build alone does not verify backend availability, Wazuh, Vertex AI, or database
-connections. No backend or deployment workflow changes are included here.
+The backend must be reachable at `https://api.flummox.cloud` through the
+Cloudflare Tunnel. Set the GCP tunnel origin to `http://localhost:8080`; Docker
+publishes the API container's port 8000 on that loopback address. A successful
+frontend build alone does not verify backend availability, Wazuh, Vertex AI, or
+database connections. Configure the same `DASHBOARD_API_KEY` in the backend and
+Vercel Production/Preview environments.
 
 Run the frontend checks before pushing:
 

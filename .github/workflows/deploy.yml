@@ -26,6 +26,32 @@ jobs:
           git fetch origin main
           git reset --hard origin/main
 
+          echo "==> Membebaskan port layanan 8080 dan 3000..."
+          # These host ports are reserved for soar-api and Juice Shop. Remove
+          # stale Docker containers from earlier deployments that still own them.
+          for port in 8080 3000; do
+            owners="$(docker ps --filter "publish=${port}" --format '{{.ID}} {{.Names}}')"
+            if [ -n "$owners" ]; then
+              echo "Container Docker yang memakai port ${port}:"
+              echo "$owners"
+              container_ids="$(docker ps -q --filter "publish=${port}")"
+              docker stop $container_ids
+            fi
+          done
+
+          if command -v ss >/dev/null 2>&1; then
+            for port in 8080 3000; do
+              if ss -ltnH "sport = :${port}" | grep -q .; then
+                echo "ERROR: Port ${port} masih dipakai proses host non-Docker:"
+                ss -ltnp "sport = :${port}" || true
+                exit 1
+              fi
+            done
+          fi
+
+          docker network inspect single-node_default >/dev/null 2>&1 || \
+            docker network create single-node_default
+
           echo "==> Menjalankan Docker Compose SOAR..."
           if docker compose version >/dev/null 2>&1; then
             docker compose -f docker-compose.soar.yml up -d --build --remove-orphans
