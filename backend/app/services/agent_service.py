@@ -364,6 +364,13 @@ def investigate_alert(
     facts_all = set(alert_facts) | {f for s in tool_trace if _step_trusted(s) for f in s.get("facts", [])}
     raw_agent_output, claim_flags = apply_claim_guard(raw_agent_output, facts_all, scored["status"])
     scored["flags"] = scored["flags"] + claim_flags
+    if "tool_inconsistent" in scored["flags"]:
+        rx = re.compile(r"(?i)korelasi|tidak menemukan|tidak ada alert|alert lain|tidak ditemukan")
+        raw_agent_output["attack_story"] = [s for s in raw_agent_output.get("attack_story", [])
+                                            if not rx.search(s.get("event", ""))]
+        raw_agent_output["summary"] = ("[Peringatan: data korelasi dari Wazuh tidak dapat diverifikasi; "
+                                       "abaikan pernyataan tentang ada atau tidaknya alert lain] "
+                                       + (raw_agent_output.get("summary", "") or ""))
     if claim_flags:
         scored["confidence_score"] = max(0, scored["confidence_score"] - 10 * len(claim_flags))
 
