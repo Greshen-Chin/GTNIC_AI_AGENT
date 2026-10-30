@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
-import { readFileSync } from "node:fs";
 import { NextRequest } from "next/server";
 import { ApiError, apiRequest } from "../src/lib/api";
-import { middleware } from "../src/middleware";
+import { GET, POST } from "../src/app/api/[...path]/route";
 import { toIncident, type ApiIncident } from "../src/features/incidents/services/incidentAdapter";
 import {
   fetchIncidents, fetchIncidentById, fetchIncidentStats, updateMitigationAction,
@@ -11,10 +10,16 @@ import {
 
 const originalFetch = globalThis.fetch;
 const originalKey = process.env.DASHBOARD_API_KEY;
+const originalApiBase = process.env.API_BASE;
+const originalPublicApiUrl = process.env.NEXT_PUBLIC_API_URL;
 afterEach(() => {
   globalThis.fetch = originalFetch;
   if (originalKey === undefined) delete process.env.DASHBOARD_API_KEY;
   else process.env.DASHBOARD_API_KEY = originalKey;
+  if (originalApiBase === undefined) delete process.env.API_BASE;
+  else process.env.API_BASE = originalApiBase;
+  if (originalPublicApiUrl === undefined) delete process.env.NEXT_PUBLIC_API_URL;
+  else process.env.NEXT_PUBLIC_API_URL = originalPublicApiUrl;
 });
 
 const incident: ApiIncident = {
@@ -89,34 +94,63 @@ test("API client preserves headers and query parameters without adding browser c
   await apiRequest("/incidents?status=likely", { headers: new Headers({ "X-Request-ID": "test-id" }) });
 });
 
-test("middleware adds the server credential as an upstream request header", () => {
+test("server proxy fetches from API_BASE and keeps the dashboard key out of the browser request", async () => {
+  process.env.API_BASE = "https://api.example.test";
   process.env.DASHBOARD_API_KEY = "test-server-only-key";
-  const response = middleware(new NextRequest("https://dashboard.example/api/incidents", {
-    headers: { "X-Request-ID": "test-id" },
-  }));
-  assert.equal(response.headers.get("x-middleware-request-x-dashboard-api-key"), "test-server-only-key");
-  assert.equal(response.headers.get("x-middleware-request-x-request-id"), "test-id");
+  let upstreamUrl = "";
+  let upstreamHeaders: Headers | undefined;
+  globalThis.fetch = async (url, init) => {
+    upstreamUrl = String(url);
+    upstreamHeaders = new Headers(init?.headers);
+    return Response.json([{ id: "inc-1" }]);
+  };
+
+  const response = await GET(
+    new NextRequest("https://dashboard.example/api/incidents?status=likely"),
+    { params: Promise.resolve({ path: ["incidents"] }) },
+  );
+
+  assert.equal(upstreamUrl, "https://api.example.test/api/incidents?status=likely");
+  assert.equal(upstreamHeaders?.get("X-Dashboard-API-Key"), "test-server-only-key");
   assert.equal(response.headers.get("X-Dashboard-API-Key"), null);
   assert.equal(response.headers.get("Cache-Control"), "private, no-store");
+  assert.deepEqual(await response.json(), [{ id: "inc-1" }]);
 });
 
-test("middleware fails clearly when credentials are missing, preserving caller auth when supplied", () => {
+test("server proxy forwards POST JSON to the backend and supports the configured URL fallback", async () => {
+  delete process.env.API_BASE;
+  process.env.NEXT_PUBLIC_API_URL = "https://api.example.test";
+  process.env.DASHBOARD_API_KEY = "test-server-only-key";
+  let upstreamUrl = "";
+  let upstreamBody = "";
+  globalThis.fetch = async (url, init) => {
+    upstreamUrl = String(url);
+    upstreamBody = new TextDecoder().decode(init?.body as ArrayBuffer);
+    return Response.json({ human_decision: "approved" });
+  };
+
+  const response = await POST(
+    new NextRequest("https://dashboard.example/api/incidents/inc-1/decision", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ decision: "approved" }),
+    }),
+    { params: Promise.resolve({ path: ["incidents", "inc-1", "decision"] }) },
+  );
+
+  assert.equal(upstreamUrl, "https://api.example.test/api/incidents/inc-1/decision");
+  assert.equal(upstreamBody, JSON.stringify({ decision: "approved" }));
+  assert.deepEqual(await response.json(), { human_decision: "approved" });
+});
+
+test("server proxy returns setup errors when backend variables are missing", async () => {
+  delete process.env.API_BASE;
+  delete process.env.NEXT_PUBLIC_API_URL;
   delete process.env.DASHBOARD_API_KEY;
-  assert.equal(middleware(new NextRequest("https://dashboard.example/api/stats")).status, 503);
-  const response = middleware(new NextRequest("https://dashboard.example/api/stats", {
-    headers: { Authorization: "Bearer caller-token" },
-  }));
-  assert.equal(response.headers.get("x-middleware-request-authorization"), "Bearer caller-token");
-});
-
-test("rewrite preserves the backend API prefix and the browser query string", () => {
-  const config = JSON.parse(readFileSync(new URL("../vercel.json", import.meta.url), "utf8"));
-  assert.equal(config.rewrites.length, 1);
-  const rule = config.rewrites[0];
-  assert.equal(rule.source, "/api/:path*");
-  const browser = new URL("https://dashboard.example/api/incidents/inc-1?limit=20");
-  const upstream = new URL(rule.destination.replace(":path*", browser.pathname.slice(5)));
-  upstream.search = browser.search;
-  assert.equal(upstream.pathname, "/api/incidents/inc-1");
-  assert.equal(upstream.search, "?limit=20");
+  const response = await GET(
+    new NextRequest("https://dashboard.example/api/incidents"),
+    { params: Promise.resolve({ path: ["incidents"] }) },
+  );
+  assert.equal(response.status, 503);
+  assert.match((await response.json()).detail, /API_BASE/);
 });

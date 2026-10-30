@@ -71,10 +71,19 @@ Set the Vercel project's **Root Directory** to `frontend`, use the Next.js
 framework preset, and use Node.js 22.x. Install with `npm install` and build with
 `npm run build`. This project uses Next.js 15 and React 19.
 
-Copy `.env.example` to `.env.local` for local development. Set the server-only
-`DASHBOARD_API_KEY` to the same value configured in the backend. Add that variable
-to the appropriate Vercel Production/Preview environments as well. Never use a
-`NEXT_PUBLIC_` variable for this key. Environment files remain ignored by Git.
+Set these variables in Vercel Project Settings → Environment Variables (and in
+`frontend/.env.local` for local development):
+
+```env
+API_BASE=https://api.flummox.cloud
+DASHBOARD_API_KEY=<same value as backend/.env>
+```
+
+`API_BASE` is server-side configuration. `NEXT_PUBLIC_API_URL` is accepted as a
+compatibility fallback for existing Vercel projects, but `API_BASE` is preferred.
+Never prefix `DASHBOARD_API_KEY` with `NEXT_PUBLIC_`: it must match the backend
+key and is only attached by the server route handler. Redeploy Vercel after
+changing environment variables.
 
 Browser requests use these same-origin endpoints:
 
@@ -85,15 +94,11 @@ Browser requests use these same-origin endpoints:
 | Analyst decision | POST | `/api/incidents/{id}/decision` | `/api/incidents/{id}/decision` |
 | Dashboard statistics | GET | `/api/stats` | `/api/stats` |
 
-`vercel.json` rewrites `/api/:path*` to
-`https://api.flummox.cloud/api/:path*`, preserving the backend's `/api` prefix,
-request method, body, and query string. `next.config.mjs` reads the same rules for
-local development and `next start`. There are no competing Next.js API handlers.
-The browser stays on the frontend's HTTPS origin while Vercel proxies requests
-to the Cloudflare Tunnel hostname. Middleware adds the dashboard key to the
-upstream request; the key is not included in browser JavaScript or response
-headers. Missing server credentials produce HTTP 503; upstream errors remain
-errors and do not trigger a fallback to demo incidents.
+The browser calls same-origin `/api/...` endpoints. A Next.js route handler
+proxies them to `${API_BASE}/api/...`, preserving methods, request bodies, and
+query strings while attaching `X-Dashboard-API-Key` on the server. The browser
+never receives this key and no CORS setup is needed. Missing credentials return
+HTTP 503; backend connectivity errors return HTTP 502.
 
 Data fetching runs through SWR in Client Components after hydration, so relative
 URLs are not passed to Node.js server-side `fetch` during builds or rendering.
@@ -105,10 +110,12 @@ longer used by the live dashboard.
 
 The backend must be reachable at `https://api.flummox.cloud` through the
 Cloudflare Tunnel. Set the GCP tunnel origin to `http://localhost:8080`; Docker
-publishes the API container's port 8000 on that loopback address. A successful
-frontend build alone does not verify backend availability, Wazuh, Vertex AI, or
-database connections. Configure the same `DASHBOARD_API_KEY` in the backend and
-Vercel Production/Preview environments.
+publishes the API container's port 8000 on that loopback address. Set the same
+`DASHBOARD_API_KEY` in backend and Vercel Production/Preview. The dashboard polls
+the backend every three seconds and now shows its connection state. Juice Shop
+alerts appear after the backend's log forwarder stores them in the incidents
+table; n8n notification delivery separately requires an active n8n webhook in
+the backend's `WEBHOOK_URL` setting.
 
 Run the frontend checks before pushing:
 
