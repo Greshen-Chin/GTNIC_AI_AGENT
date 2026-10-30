@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     N8N_VERSION: Optional[str] = None
     N8N_ENCRYPTION_KEY: Optional[str] = None
     CF_TUNNEL_TOKEN: Optional[str] = None
+    WEBHOOK_URL: Optional[str] = None
 
     # App Settings
     APP_NAME: str = "GTNIC SOAR-API"

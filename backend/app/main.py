@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from app.middleware import AttackWebhookMiddleware
 
 from app.config import settings
 from app.database import test_postgres_connection
@@ -52,6 +53,10 @@ app = FastAPI(
     version="2.0.0",
     lifespan=lifespan
 )
+
+# Only inspects requests that pass through this API. Juice Shop traffic sent
+# directly to port 3000 must be forwarded through a proxy/API to be observed here.
+app.add_middleware(AttackWebhookMiddleware)
 
 # Enable CORS for Next.js frontend development
 app.add_middleware(
