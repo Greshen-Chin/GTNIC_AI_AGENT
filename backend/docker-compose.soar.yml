@@ -39,8 +39,39 @@ services:
     image: bkimminich/juice-shop:latest
     container_name: soar-juice-shop
     restart: unless-stopped
+    networks:
+      - single-node_default
+
+  juice-shop-proxy:
+    image: nginx:1.27-alpine
+    container_name: soar-juice-shop-proxy
+    restart: unless-stopped
     ports:
-      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:3000:80"
+    volumes:
+      - ../wazuh/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - juice_shop_logs:/var/log/nginx
+    depends_on:
+      - juice-shop
+    networks:
+      - single-node_default
+
+  juice-log-forwarder:
+    build: .
+    container_name: soar-juice-log-forwarder
+    restart: unless-stopped
+    command: ["python", "-m", "app.services.juice_log_forwarder"]
+    env_file:
+      - .env
+    environment:
+      - SOAR_API_URL=http://soar-api:8000
+      - JUICE_ACCESS_LOG=/var/log/nginx/access.jsonl
+    volumes:
+      - juice_shop_logs:/var/log/nginx:ro
+      - juice_forwarder_state:/var/lib/juice-forwarder
+    depends_on:
+      - soar-api
+      - juice-shop-proxy
     networks:
       - single-node_default
 
@@ -74,6 +105,8 @@ services:
 volumes:
   pg_data:
   n8n_data:
+  juice_shop_logs:
+  juice_forwarder_state:
 
 networks:
   single-node_default:

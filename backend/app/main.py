@@ -10,6 +10,7 @@ from app.database import test_postgres_connection
 from app.services.vertex_service import get_vertex_client
 from app.api.internal_tools import router as internal_router
 from app.api.dashboard import router as dashboard_router
+from app.api.ingest import router as ingest_router
 
 # Configure structured logging
 logging.basicConfig(
@@ -70,6 +71,7 @@ app.add_middleware(
 # Register routers
 app.include_router(internal_router)
 app.include_router(dashboard_router)
+app.include_router(ingest_router)
 
 
 @app.get("/health", tags=["System"])
@@ -96,6 +98,9 @@ def root():
                 "POST /internal/tools/inspect_web_attack",
                 "POST /internal/tools/mitre_owasp_rag",
                 "POST /internal/agent/investigate"
+            ],
+            "security_ingestion": [
+                "POST /integrations/juice-shop/access-log"
             ],
             "dashboard_api": [
                 "GET /api/incidents",

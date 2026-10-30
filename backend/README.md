@@ -67,6 +67,41 @@ cd backend
 docker compose -f docker-compose.soar.yml up -d --build
 ```
 
+## Juice Shop attack monitoring
+
+Juice Shop is published through the Nginx reverse proxy on `http://localhost:3000`.
+The proxy writes JSON access logs to a shared Docker volume; `juice-log-forwarder`
+ships those entries to the authenticated SOAR endpoint. The API detects SQLi/XSS
+patterns in the request URI, stores a pending incident in PostgreSQL, and posts a
+`security.alert` event to n8n when `WEBHOOK_URL` is configured. The existing
+dashboard polls the incident API every three seconds, so the incident appears in
+the queue automatically.
+
+Add the active n8n **Production URL** to `backend/.env`:
+
+```env
+WEBHOOK_URL=http://soar-n8n:5678/webhook/your-active-workflow-path
+```
+
+The n8n workflow should start with a **Webhook** node using that path, then route
+`security.alert` to the team's chosen channel or ticketing system. The incoming
+JSON includes `incident_id`, `threat_type`, `severity`, `source_ip`, `payload`,
+and `dashboard_url`. Keep the workflow active so n8n's production webhook accepts
+events.
+
+Recreate the stack after changing the Compose file or `.env`:
+
+```powershell
+docker compose -f docker-compose.soar.yml up -d --build
+```
+
+Attack test: open `http://localhost:3000` through the proxy and send a harmless
+SQLi probe in a URL query, for example `/rest/products/search?q=%27%20OR%201%3D1%20--%20`.
+Then check `GET /api/incidents` in the dashboard or the backend logs. Only traffic
+sent through port 3000 is monitored; direct access to the Juice Shop container is
+not exposed by this Compose file. The current detector inspects request URLs, not
+POST bodies, and reports suspicious attempts rather than proving exploitation.
+
 ### 3. Menjalankan Ingest RAG (Tahap 7)
 ```bash
 python ingest_rag.py
