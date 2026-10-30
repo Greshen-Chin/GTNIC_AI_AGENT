@@ -181,3 +181,140 @@ async def test_dashboard_api_flow(ac: AsyncClient):
     bench = bench_resp.json()
     assert "total_scenarios" in bench
     assert bench["agent_accuracy"] > bench["baseline_accuracy"]
+
+
+@pytest.mark.anyio
+async def test_juice_shop_ingest_detects_body_sqli(ac: AsyncClient):
+    # Test POST login with SQLi in request body (e.g. ' OR 1= 1--)
+    event = {
+        "remote_addr": "192.168.1.50",
+        "method": "POST",
+        "uri": "/rest/user/login",
+        "body": '{"email":"\' OR 1= 1--","password":"dummy"}',
+        "status": 401,
+        "user_agent": "Mozilla/5.0",
+    }
+    resp = await ac.post(
+        "/integrations/juice-shop/access-log",
+        headers=INTERNAL_HEADERS,
+        json=event,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["accepted"] is True
+    assert data["detected"] is True
+    assert data["threat_type"] == "sql_injection"
+    assert data["threat_location"] == "Request Body"
+    assert "incident_id" in data
+
+
+@pytest.mark.anyio
+async def test_juice_shop_ingest_detects_url_sqli(ac: AsyncClient):
+    # Test GET product search with SQLi in query string
+    event = {
+        "remote_addr": "192.168.1.50",
+        "method": "GET",
+        "uri": "/rest/products/search?q=%27%20OR%201%3D1%20--%20",
+        "body": "",
+        "status": 200,
+        "user_agent": "Mozilla/5.0",
+    }
+    resp = await ac.post(
+        "/integrations/juice-shop/access-log",
+        headers=INTERNAL_HEADERS,
+        json=event,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["accepted"] is True
+    assert data["detected"] is True
+    assert data["threat_type"] == "sql_injection"
+    assert data["threat_location"] == "URL"
+
+
+@pytest.mark.anyio
+async def test_juice_shop_ingest_ignores_normal_requests(ac: AsyncClient):
+    # Clean request
+    event = {
+        "remote_addr": "192.168.1.50",
+        "method": "POST",
+        "uri": "/rest/user/login",
+        "body": '{"email":"alice@example.com","password":"secretpassword"}',
+        "status": 200,
+        "user_agent": "Mozilla/5.0",
+    }
+    resp = await ac.post(
+        "/integrations/juice-shop/access-log",
+        headers=INTERNAL_HEADERS,
+        json=event,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["accepted"] is True
+    assert data["detected"] is False
+
+
+@pytest.mark.anyio
+async def test_juice_shop_ingest_detects_xss_in_body(ac: AsyncClient):
+    event = {
+        "remote_addr": "192.168.1.50",
+        "method": "POST",
+        "uri": "/api/Feedbacks",
+        "body": '{"comment":"<script>alert(1)</script>"}',
+        "status": 201,
+        "user_agent": "Mozilla/5.0",
+    }
+    resp = await ac.post(
+        "/integrations/juice-shop/access-log",
+        headers=INTERNAL_HEADERS,
+        json=event,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["accepted"] is True
+    assert data["detected"] is True
+    assert data["threat_type"] == "cross_site_scripting"
+    assert data["threat_location"] == "Request Body"
+
+
+@pytest.mark.anyio
+async def test_juice_shop_ingest_detects_command_injection_and_path_traversal(ac: AsyncClient):
+    # Command injection test
+    cmdi_event = {
+        "remote_addr": "192.168.1.50",
+        "method": "POST",
+        "uri": "/api/tools/ping",
+        "body": '{"host":"127.0.0.1; cat /etc/passwd"}',
+        "status": 500,
+        "user_agent": "Mozilla/5.0",
+    }
+    resp = await ac.post(
+        "/integrations/juice-shop/access-log",
+        headers=INTERNAL_HEADERS,
+        json=cmdi_event,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["detected"] is True
+    assert data["threat_type"] == "command_injection"
+
+    # Path traversal test
+    lfi_event = {
+        "remote_addr": "192.168.1.50",
+        "method": "GET",
+        "uri": "/ftp?file=../../../../etc/passwd",
+        "body": "",
+        "status": 200,
+        "user_agent": "Mozilla/5.0",
+    }
+    resp2 = await ac.post(
+        "/integrations/juice-shop/access-log",
+        headers=INTERNAL_HEADERS,
+        json=lfi_event,
+    )
+    assert resp2.status_code == 200
+    data2 = resp2.json()
+    assert data2["detected"] is True
+    assert data2["threat_type"] == "path_traversal"
+
+

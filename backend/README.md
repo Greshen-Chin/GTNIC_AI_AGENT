@@ -70,12 +70,12 @@ docker compose -f docker-compose.soar.yml up -d --build
 ## Juice Shop attack monitoring
 
 Juice Shop is published through the Nginx reverse proxy on `http://localhost:3000`.
-The proxy writes JSON access logs to a shared Docker volume; `juice-log-forwarder`
-ships those entries to the authenticated SOAR endpoint. The API detects SQLi/XSS
-patterns in the request URI, stores a pending incident in PostgreSQL, and posts a
-`security.alert` event to n8n when `WEBHOOK_URL` is configured. The existing
-dashboard polls the incident API every three seconds, so the incident appears in
-the queue automatically.
+The proxy writes JSON access logs (including request URI and buffered request body)
+to a shared Docker volume; `juice-log-forwarder` ships those entries to the authenticated
+SOAR endpoint. The API detects SQLi/XSS patterns in both the request URI and POST request body,
+stores a pending incident in PostgreSQL, and posts a `security.alert` event to n8n when
+`WEBHOOK_URL` is configured. The existing dashboard polls the incident API every three seconds,
+so the incident appears in the queue automatically.
 
 Add the active n8n **Production URL** to `backend/.env`:
 
@@ -95,12 +95,12 @@ Recreate the stack after changing the Compose file or `.env`:
 docker compose -f docker-compose.soar.yml up -d --build
 ```
 
-Attack test: open `http://localhost:3000` through the proxy and send a harmless
-SQLi probe in a URL query, for example `/rest/products/search?q=%27%20OR%201%3D1%20--%20`.
-Then check `GET /api/incidents` in the dashboard or the backend logs. Only traffic
-sent through port 3000 is monitored; direct access to the Juice Shop container is
-not exposed by this Compose file. The current detector inspects request URLs, not
-POST bodies, and reports suspicious attempts rather than proving exploitation.
+Attack test: open `http://localhost:3000` through the proxy and send a SQLi probe
+either in a URL query (e.g. `/rest/products/search?q=%27%20OR%201%3D1%20--%20`) or directly
+via the login form POST body (`' OR 1= 1--`). Then check `GET /api/incidents` in the dashboard
+or the backend logs. Only traffic sent through port 3000 is monitored; direct access to the Juice
+Shop container is not exposed by this Compose file. The detector inspects both request URLs
+and POST bodies, and reports suspicious attempts rather than proving exploitation.
 
 ### 3. Menjalankan Ingest RAG (Tahap 7)
 ```bash
