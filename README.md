@@ -22,7 +22,7 @@ GTNIC_AI_AGENT/
 
 ## 🚀 Running the Frontend
 
-Navigate to the `frontend` folder or use npm prefix:
+navigate to the `frontend` folder or use npm prefix:
 
 ```bash
 cd frontend
