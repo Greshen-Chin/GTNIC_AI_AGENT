@@ -190,6 +190,12 @@ def db_insert_incident(inc_data: Dict[str, Any]) -> str:
                     )
                     created_id = cur.fetchone()["id"]
                     conn.commit()
+                    # Dispatch real-time alert to Discord
+                    try:
+                        from app.services.discord_service import dispatch_discord_alert_async
+                        dispatch_discord_alert_async(inc_data, incident_id=str(created_id))
+                    except Exception as discord_err:
+                        logger.warning(f"Could not trigger Discord notification: {discord_err}")
                     return str(created_id)
         except Exception as e:
             logger.error(f"Error inserting incident into Postgres: {e}")
@@ -202,6 +208,12 @@ def db_insert_incident(inc_data: Dict[str, Any]) -> str:
         "human_decision": inc_data.get("human_decision", "pending")
     }
     _IN_MEMORY_INCIDENTS.insert(0, inc_record)
+    # Dispatch real-time alert to Discord for in-memory record as well
+    try:
+        from app.services.discord_service import dispatch_discord_alert_async
+        dispatch_discord_alert_async(inc_record, incident_id=inc_id)
+    except Exception as discord_err:
+        logger.warning(f"Could not trigger Discord notification: {discord_err}")
     return inc_id
 
 

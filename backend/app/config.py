@@ -43,6 +43,11 @@ class Settings(BaseSettings):
     CF_TUNNEL_TOKEN: Optional[str] = None
     WEBHOOK_URL: Optional[str] = None
 
+    # Discord Bot Integration (dibaca langsung dari .env)
+    DISCORD_ENABLED: bool = True
+    DISCORD_BOT_TOKEN: Optional[str] = None
+    DISCORD_CHANNEL_ID: Optional[str] = None
+
     # App Settings
     APP_NAME: str = "GTNIC SOAR-API"
     APP_ENV: str = "production"
