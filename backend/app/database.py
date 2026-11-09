@@ -195,7 +195,7 @@ def db_insert_incident(inc_data: Dict[str, Any]) -> str:
                         from app.services.discord_service import dispatch_discord_alert_async
                         dispatch_discord_alert_async(inc_data, incident_id=str(created_id))
                     except Exception as discord_err:
-                        logger.warning(f"Could not trigger Discord notification: {discord_err}")
+                        logger.exception("Could not trigger Discord notification: %s", discord_err)
                     return str(created_id)
         except Exception as e:
             logger.error(f"Error inserting incident into Postgres: {e}")
@@ -213,7 +213,7 @@ def db_insert_incident(inc_data: Dict[str, Any]) -> str:
         from app.services.discord_service import dispatch_discord_alert_async
         dispatch_discord_alert_async(inc_record, incident_id=inc_id)
     except Exception as discord_err:
-        logger.warning(f"Could not trigger Discord notification: {discord_err}")
+        logger.exception("Could not trigger Discord notification: %s", discord_err)
     return inc_id
 
 

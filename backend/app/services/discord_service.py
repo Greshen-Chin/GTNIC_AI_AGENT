@@ -46,7 +46,17 @@ def build_incident_embed(incident: Dict[str, Any], incident_id: Optional[str] = 
     """
     inc_id = incident_id or incident.get("id") or "N/A"
     raw_alert = incident.get("raw_alert") or {}
+    if isinstance(raw_alert, str):
+        try:
+            raw_alert = json.loads(raw_alert)
+        except Exception:
+            raw_alert = {}
+    if not isinstance(raw_alert, dict):
+        raw_alert = {}
+
     alert_data = raw_alert.get("data") or {}
+    if not isinstance(alert_data, dict):
+        alert_data = {}
 
     severity_label = str(incident.get("severity_label", "medium")).lower()
     severity_score = incident.get("severity_score", 50)

@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     # Discord Bot Integration (dibaca langsung dari .env)
     DISCORD_ENABLED: bool = True
     DISCORD_BOT_TOKEN: Optional[str] = None
-    DISCORD_CHANNEL_ID: Optional[str] = None
+    DISCORD_CHANNEL_ID: Optional[str] = "1569391109560475740"
 
     # App Settings
     APP_NAME: str = "GTNIC SOAR-API"
