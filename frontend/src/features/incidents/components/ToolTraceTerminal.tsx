@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
+  Layers,
 } from "lucide-react";
 import { ToolTrace } from "../types";
 
@@ -37,23 +38,15 @@ export const ToolTraceTerminal: React.FC<ToolTraceTerminalProps> = ({
   };
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-black shadow-2xl overflow-hidden font-mono mt-6">
-      {/* Terminal Title Bar */}
-      <div className="bg-zinc-950 border-b border-zinc-800 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {/* OS Window Dots */}
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-rose-500/80 inline-block" />
-            <span className="w-3 h-3 rounded-full bg-amber-500/80 inline-block" />
-            <span className="w-3 h-3 rounded-full bg-emerald-500/80 inline-block" />
-          </div>
-
-          <div className="flex items-center gap-2 text-xs text-zinc-300 ml-2">
-            <TerminalIcon className="w-4 h-4 text-emerald-400" />
-            <span className="text-emerald-400 font-bold">soc-agent@kernel:</span>
-            <span className="text-zinc-400">~/audit-traces/execution.log</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
-              {toolTraces.length} TOOLS EXECUTED
+    <div className="rounded-lg border border-slate-800/80 bg-[#070b12] shadow-xl overflow-hidden font-mono mt-5">
+      {/* Tactical Title Bar */}
+      <div className="bg-[#0c121e] border-b border-slate-800/80 px-4 py-2.5 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <TerminalIcon className="w-4 h-4 text-emerald-400" />
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-white font-semibold">SOAR Execution Trace & Tool Audit Log</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-900 text-slate-400 border border-slate-800 tabular-nums">
+              {toolTraces.length} Calls Recorded
             </span>
           </div>
         </div>
@@ -62,7 +55,7 @@ export const ToolTraceTerminal: React.FC<ToolTraceTerminalProps> = ({
           {isOpen && selectedTrace && (
             <button
               onClick={handleCopyJson}
-              className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-700 transition-colors"
+              className="flex items-center gap-1 text-[10px] px-2 py-1 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-colors active:scale-[0.97]"
             >
               {copied ? (
                 <>
@@ -80,17 +73,17 @@ export const ToolTraceTerminal: React.FC<ToolTraceTerminalProps> = ({
 
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="flex items-center gap-1 text-xs text-zinc-400 hover:text-white px-2 py-1 rounded hover:bg-zinc-800 transition-colors"
+            className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-white px-2 py-1 rounded hover:bg-slate-900 transition-colors active:scale-[0.97]"
           >
             {isOpen ? (
               <>
                 <span>Collapse</span>
-                <ChevronUp className="w-4 h-4" />
+                <ChevronUp className="w-3.5 h-3.5" />
               </>
             ) : (
               <>
-                <span>Expand Terminal</span>
-                <ChevronDown className="w-4 h-4" />
+                <span>Expand Trace Log</span>
+                <ChevronDown className="w-3.5 h-3.5" />
               </>
             )}
           </button>
@@ -99,87 +92,96 @@ export const ToolTraceTerminal: React.FC<ToolTraceTerminalProps> = ({
 
       {/* Terminal Body */}
       {isOpen && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[320px] max-h-[460px] divide-y lg:divide-y-0 lg:divide-x divide-zinc-800 bg-black">
+        <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[300px] max-h-[440px] divide-y lg:divide-y-0 lg:divide-x divide-slate-800/80 bg-[#070b12]">
           {/* Tool List Sidebar */}
-          <div className="lg:col-span-4 p-3 overflow-y-auto space-y-1.5 bg-zinc-950/50">
-            <div className="text-[10px] text-zinc-500 uppercase px-2 py-1 tracking-wider">
-              Autonomous Tool Sequence
+          <div className="lg:col-span-4 p-2.5 overflow-y-auto space-y-1 bg-[#090e18]/80">
+            <div className="flex items-center gap-1.5 text-[10px] text-slate-400 uppercase px-2 py-1 tracking-wider">
+              <Layers className="w-3 h-3 text-slate-400" />
+              <span>Tool Call Sequence</span>
             </div>
-            {toolTraces.map((trace) => {
-              const isSelected = trace.id === (selectedTrace?.id || "");
-              return (
-                <button
-                  key={trace.id}
-                  onClick={() => setActiveTraceId(trace.id)}
-                  className={`w-full text-left p-2.5 rounded text-xs transition-all flex items-center justify-between border ${
-                    isSelected
-                      ? "bg-zinc-900 border-emerald-500/60 text-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.15)]"
-                      : "bg-black/40 border-zinc-850 hover:bg-zinc-900/60 text-zinc-400 hover:text-zinc-200"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 truncate">
-                    {trace.status === "success" ? (
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
-                    ) : (
-                      <XCircle className="w-3.5 h-3.5 text-rose-400 flex-shrink-0" />
-                    )}
-                    <span className="truncate font-semibold">{trace.toolName}</span>
-                  </div>
-                  <span className="text-[10px] text-zinc-500 flex-shrink-0 ml-2">
-                    {trace.durationMs}ms
-                  </span>
-                </button>
-              );
-            })}
+            {toolTraces.length === 0 ? (
+              <div className="text-[11px] text-slate-500 p-3 text-center">
+                No tool traces logged.
+              </div>
+            ) : (
+              toolTraces.map((trace) => {
+                const isSelected = trace.id === (selectedTrace?.id || "");
+                return (
+                  <button
+                    key={trace.id}
+                    onClick={() => setActiveTraceId(trace.id)}
+                    className={`w-full text-left p-2 rounded text-xs transition-colors flex items-center justify-between border active:scale-[0.98] ${
+                      isSelected
+                        ? "bg-[#0c121e] border-emerald-500/50 text-emerald-300"
+                        : "bg-transparent border-transparent hover:bg-slate-900/60 text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      {trace.status === "success" ? (
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                      ) : (
+                        <XCircle className="w-3.5 h-3.5 text-rose-400 flex-shrink-0" />
+                      )}
+                      <span className="truncate font-semibold font-mono text-[11px]">{trace.toolName}</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 flex-shrink-0 ml-2 font-mono tabular-nums">
+                      {trace.durationMs}ms
+                    </span>
+                  </button>
+                );
+              })
+            )}
           </div>
 
           {/* Trace Execution Raw Code Viewer */}
-          <div className="lg:col-span-8 p-4 overflow-y-auto bg-black text-xs">
+          <div className="lg:col-span-8 p-3.5 overflow-y-auto bg-[#070b12] text-xs">
             {selectedTrace ? (
               <div className="space-y-3">
                 {/* Header metrics */}
-                <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-zinc-800 text-[11px] text-zinc-400">
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-800 text-[11px] text-slate-400">
                   <div className="flex items-center gap-2">
-                    <span className="text-emerald-400 font-bold">$ call</span>
-                    <span className="text-white font-semibold">
+                    <span className="text-emerald-400 font-bold">tool:</span>
+                    <span className="text-white font-semibold font-mono">
                       {selectedTrace.toolName}()
                     </span>
                   </div>
-                  <div className="flex items-center gap-4 text-zinc-500">
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {selectedTrace.executedAt}
-                    </span>
-                    <span className="text-emerald-400 font-semibold">
-                      Execution: {selectedTrace.durationMs}ms
+                  <div className="flex items-center gap-3 text-slate-400 text-[10px] font-mono">
+                    {selectedTrace.executedAt && (
+                      <span className="flex items-center gap-1 tabular-nums">
+                        <Clock className="w-2.5 h-2.5" />
+                        {selectedTrace.executedAt}
+                      </span>
+                    )}
+                    <span className="text-emerald-400 font-semibold tabular-nums">
+                      Duration: {selectedTrace.durationMs}ms
                     </span>
                   </div>
                 </div>
 
-                {/* JSON Tree */}
-                <div className="space-y-2">
+                {/* Parameters & Response */}
+                <div className="space-y-2.5">
                   <div>
-                    <span className="text-zinc-500 text-[11px] block mb-1">
-                      {"// Input Arguments:"}
+                    <span className="text-slate-400 text-[10px] block mb-1 uppercase tracking-wider">
+                      Invocation Arguments:
                     </span>
-                    <pre className="p-3 rounded bg-zinc-950 border border-zinc-800/80 text-emerald-400/90 text-[11px] overflow-x-auto whitespace-pre-wrap leading-relaxed">
+                    <pre className="p-2.5 rounded bg-[#090e18] border border-slate-800 text-emerald-400/90 text-[11px] overflow-x-auto whitespace-pre-wrap leading-relaxed font-mono">
                       {JSON.stringify(selectedTrace.input, null, 2)}
                     </pre>
                   </div>
 
                   <div>
-                    <span className="text-zinc-500 text-[11px] block mb-1">
-                      {"// Agent Response Output:"}
+                    <span className="text-slate-400 text-[10px] block mb-1 uppercase tracking-wider">
+                      Result Payload:
                     </span>
-                    <pre className="p-3 rounded bg-zinc-950 border border-zinc-800/80 text-cyan-300 text-[11px] overflow-x-auto whitespace-pre-wrap leading-relaxed">
+                    <pre className="p-2.5 rounded bg-[#090e18] border border-slate-800 text-cyan-300 text-[11px] overflow-x-auto whitespace-pre-wrap leading-relaxed font-mono">
                       {JSON.stringify(selectedTrace.output, null, 2)}
                     </pre>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="text-zinc-600 text-center py-12">
-                Select a tool trace to view execution payload.
+              <div className="text-slate-500 text-center py-10 font-mono text-xs">
+                Select a tool execution from the list to inspect arguments and response payload.
               </div>
             )}
           </div>

@@ -1,9 +1,9 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "primary" | "destructive" | "secondary" | "outline" | "ghost" | "emerald";
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xl";
   isLoading?: boolean;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
@@ -25,24 +25,25 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const sizeClasses = {
-      sm: "h-8 px-3 text-xs font-mono",
-      md: "h-9 px-4 text-xs font-mono font-medium",
-      lg: "h-11 px-6 text-sm font-mono font-semibold",
+      sm: "h-7 px-2.5 text-[11px] font-mono gap-1.5",
+      md: "h-9 px-3.5 text-xs font-mono font-medium gap-2",
+      lg: "h-11 px-5 text-xs font-mono font-semibold gap-2.5",
+      xl: "h-12 px-6 text-sm font-mono font-bold gap-3",
     };
 
     const variantClasses = {
       primary:
-        "bg-cyan-600 hover:bg-cyan-500 text-white shadow-[0_0_15px_rgba(6,182,212,0.35)] border border-cyan-400/40 active:translate-y-0.5",
+        "bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold shadow-sm border border-emerald-400/80 active:scale-[0.97]",
       emerald:
-        "bg-emerald-600 hover:bg-emerald-500 text-emerald-950 font-bold shadow-[0_0_18px_rgba(16,185,129,0.45)] border border-emerald-400 active:translate-y-0.5",
+        "bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold shadow-sm border border-emerald-400 active:scale-[0.97]",
       destructive:
-        "bg-rose-900/60 hover:bg-rose-800/80 text-rose-200 border border-rose-500/50 shadow-[0_0_15px_rgba(244,63,94,0.3)] active:translate-y-0.5",
+        "bg-rose-950/70 hover:bg-rose-900/90 text-rose-200 border border-rose-600/50 shadow-sm active:scale-[0.97]",
       secondary:
-        "bg-slate-900 hover:bg-slate-800/90 text-slate-200 border border-slate-700/80 hover:border-slate-600 shadow-sm active:translate-y-0.5",
+        "bg-slate-900/90 hover:bg-slate-800 text-slate-200 border border-slate-800 hover:border-slate-700 shadow-sm active:scale-[0.97]",
       outline:
-        "bg-transparent hover:bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700 active:translate-y-0.5",
+        "bg-transparent hover:bg-slate-900/60 text-slate-300 border border-slate-800 hover:border-slate-700 active:scale-[0.97]",
       ghost:
-        "bg-transparent hover:bg-slate-900/80 text-slate-400 hover:text-slate-100 border border-transparent",
+        "bg-transparent hover:bg-slate-800/60 text-slate-400 hover:text-slate-200 border border-transparent active:scale-[0.97]",
     };
 
     return (
@@ -50,7 +51,9 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled || isLoading}
         className={cn(
-          "inline-flex items-center justify-center gap-2 rounded-md transition-all duration-150 select-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none cursor-pointer",
+          "inline-flex items-center justify-center rounded-md transition-all duration-150 select-none",
+          "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500/60",
+          "disabled:opacity-45 disabled:cursor-not-allowed disabled:pointer-events-none cursor-pointer",
           sizeClasses[size],
           variantClasses[variant],
           className

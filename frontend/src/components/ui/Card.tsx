@@ -12,17 +12,17 @@ export const Card: React.FC<CardProps> = ({
   ...props
 }) => {
   const glowClasses = {
-    none: "border-slate-800/80 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.5)]",
-    emerald: "border-emerald-500/40 shadow-[0_0_20px_rgba(16,185,129,0.1)]",
-    rose: "border-rose-500/40 shadow-[0_0_20px_rgba(244,63,94,0.1)]",
-    cyan: "border-cyan-500/40 shadow-[0_0_20px_rgba(6,182,212,0.1)]",
-    orange: "border-orange-500/40 shadow-[0_0_20px_rgba(249,115,22,0.1)]",
+    none: "border-slate-800/80 shadow-[0_2px_12px_rgba(0,0,0,0.4)]",
+    emerald: "border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.08)]",
+    rose: "border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.08)]",
+    cyan: "border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.08)]",
+    orange: "border-orange-500/30 shadow-[0_0_15px_rgba(249,115,22,0.08)]",
   };
 
   return (
     <div
       className={cn(
-        "rounded-lg bg-slate-900/60 backdrop-blur-md border text-slate-200 transition-colors duration-200",
+        "rounded-lg bg-[#0c121e]/90 backdrop-blur-md border text-slate-200 transition-colors duration-150",
         glowClasses[glow],
         className
       )}
@@ -41,7 +41,7 @@ export const CardHeader: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   return (
     <div
       className={cn(
-        "px-5 py-3.5 border-b border-slate-800/80 flex items-center justify-between",
+        "px-4 py-3 border-b border-slate-800/70 bg-[#090e18]/80 flex items-center justify-between",
         className
       )}
       {...props}
@@ -59,7 +59,7 @@ export const CardTitle: React.FC<React.HTMLAttributes<HTMLHeadingElement>> = ({
   return (
     <h3
       className={cn(
-        "text-sm font-semibold tracking-wide text-slate-100 flex items-center gap-2",
+        "text-xs font-semibold tracking-wider uppercase text-slate-200 flex items-center gap-2 font-mono",
         className
       )}
       {...props}
@@ -75,7 +75,7 @@ export const CardContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   ...props
 }) => {
   return (
-    <div className={cn("p-5", className)} {...props}>
+    <div className={cn("p-4 sm:p-5", className)} {...props}>
       {children}
     </div>
   );

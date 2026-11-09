@@ -10,8 +10,10 @@ import {
   Server,
   Globe,
   Clock,
-  Cpu,
+  ShieldCheck,
   Info,
+  Check,
+  Copy,
 } from "lucide-react";
 import { Incident } from "../types";
 import { SeverityBadge, VerdictBadge, StatusBadge } from "@/components/ui/Badge";
@@ -30,15 +32,22 @@ export const IncidentHeader: React.FC<IncidentHeaderProps> = ({
   const [isApproving, setIsApproving] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState(false);
+
+  const handleCopyId = () => {
+    navigator.clipboard.writeText(incident.id);
+    setCopiedId(true);
+    setTimeout(() => setCopiedId(false), 2000);
+  };
 
   const handleApprove = async () => {
     setIsApproving(true);
     setActionFeedback(null);
     try {
       await onMitigate("Approved");
-      setActionFeedback("Mitigation approval recorded.");
+      setActionFeedback("Mitigation playbook approved and enforcement signal dispatched.");
     } catch {
-      setActionFeedback("Failed to record mitigation approval.");
+      setActionFeedback("Failed to record mitigation decision.");
     } finally {
       setIsApproving(false);
     }
@@ -49,116 +58,131 @@ export const IncidentHeader: React.FC<IncidentHeaderProps> = ({
     setActionFeedback(null);
     try {
       await onMitigate("Rejected");
-      setActionFeedback("Incident marked as False Positive.");
+      setActionFeedback("Incident marked as False Positive. Alarm closed.");
     } catch {
-      setActionFeedback("Failed to update status.");
+      setActionFeedback("Failed to update incident status.");
     } finally {
       setIsRejecting(false);
     }
   };
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/80 backdrop-blur-md p-6 mb-6 shadow-xl">
-      {/* Top breadcrumb & metadata */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
-        <div className="flex items-center gap-3">
+    <div className="rounded-lg border border-slate-800/80 bg-[#0c121e]/90 backdrop-blur-md p-4 sm:p-5 mb-5 shadow-xl font-mono">
+      {/* Top breadcrumb & operational metadata */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3.5 border-b border-slate-800/70">
+        <div className="flex items-center gap-2 text-xs">
           <Link
             href="/"
-            className="inline-flex items-center gap-1.5 text-xs font-mono text-slate-400 hover:text-emerald-400 transition-colors"
+            className="inline-flex items-center gap-1.5 text-slate-400 hover:text-emerald-400 transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            Back to Incident Queue
+            <span>Triage Queue</span>
           </Link>
           <span className="text-slate-600">/</span>
-          <span className="text-xs font-mono text-emerald-400 font-semibold">
-            {incident.id}
-          </span>
+          <button
+            onClick={handleCopyId}
+            title="Click to copy incident ID"
+            className="inline-flex items-center gap-1 text-emerald-400 hover:text-emerald-300 font-semibold transition-colors"
+          >
+            <span>{incident.id}</span>
+            {copiedId ? (
+              <Check className="w-3 h-3 text-emerald-400" />
+            ) : (
+              <Copy className="w-3 h-3 opacity-60 hover:opacity-100" />
+            )}
+          </button>
           <StatusBadge status={incident.status} />
         </div>
 
-        <div className="flex items-center gap-4 text-xs font-mono text-slate-400">
+        <div className="flex items-center gap-3 text-[11px] text-slate-400">
           <div className="flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5 text-slate-500" />
-            <span>Detected: {formatDateTime(incident.timestamp)}</span>
+            <Clock className="w-3 h-3 text-slate-500" />
+            <span>Detected:</span>
+            <span className="text-slate-300 tabular-nums">{formatDateTime(incident.timestamp)}</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <Cpu className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Agent Confidence: {(incident.aiConfidence * 100).toFixed(0)}%</span>
+          <div className="hidden sm:flex items-center gap-1.5">
+            <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
+            <span>Confidence:</span>
+            <span className="text-indigo-300 font-semibold tabular-nums">
+              {Math.round(incident.aiConfidence * 100)}%
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Main Title, Target IP, Severity and Action Buttons */}
-      <div className="mt-4 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-2.5">
+      {/* Main Title, Target IP, Severity, and Action Controls */}
+      <div className="mt-3.5 flex flex-col lg:flex-row lg:items-start justify-between gap-5">
+        <div className="space-y-2.5 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
             <SeverityBadge severity={incident.severity} />
             <VerdictBadge
               verdict={incident.aiVerdict}
               confidence={incident.aiConfidence}
             />
           </div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-white font-sans">
             {incident.title}
           </h1>
-          <p className="text-sm text-slate-400 max-w-4xl">{incident.description}</p>
+          <p className="text-xs sm:text-sm text-slate-300 max-w-4xl leading-relaxed font-sans">
+            {incident.description}
+          </p>
 
-          {/* Quick Target/Source Network Pill */}
-          <div className="flex flex-wrap items-center gap-4 pt-1 text-xs font-mono">
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-950 border border-slate-800">
+          {/* Adversary & Asset Target Telemetry */}
+          <div className="flex flex-wrap items-center gap-2.5 pt-1 text-xs">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#070b12] border border-slate-800">
               <Globe className="w-3.5 h-3.5 text-rose-400" />
-              <span className="text-slate-400">Source:</span>
+              <span className="text-slate-400">Adversary IP:</span>
               <span className="text-slate-200 font-semibold">{incident.sourceIp}</span>
               {incident.sourceCountry && (
-                <span className="text-slate-500 text-[11px]">({incident.sourceCountry})</span>
+                <span className="text-slate-400 text-[11px]">({incident.sourceCountry})</span>
               )}
             </div>
 
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-950 border border-slate-800">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#070b12] border border-slate-800">
               <Server className="w-3.5 h-3.5 text-cyan-400" />
-              <span className="text-slate-400">Target IP:</span>
-              <span className="text-slate-200 font-semibold">{incident.targetIp}</span>
-              <span className="text-cyan-400 text-[11px]">({incident.targetAsset})</span>
+              <span className="text-slate-400">Target Asset:</span>
+              <span className="text-slate-200 font-semibold">{incident.targetAsset}</span>
+              <span className="text-cyan-400 text-[11px]">[{incident.targetIp}]</span>
             </div>
           </div>
         </div>
 
-        {/* Big Action Buttons */}
-        <div className="flex flex-col sm:flex-row lg:flex-col gap-3 min-w-[280px]">
+        {/* Triage Decision Control Panel */}
+        <div className="flex flex-col gap-2.5 min-w-[300px] sm:min-w-[340px] self-stretch lg:self-start">
           {incident.mitigationActionTaken ? (
             <div
               className={`p-4 rounded-lg border text-center ${
                 incident.mitigationActionTaken === "Approved"
-                  ? "bg-emerald-950/50 border-emerald-500/60 text-emerald-300"
-                  : "bg-slate-900 border-slate-700 text-slate-300"
+                  ? "bg-emerald-950/40 border-emerald-500/50 text-emerald-300"
+                  : "bg-slate-900/80 border-slate-700/80 text-slate-300"
               }`}
             >
-              <div className="flex items-center justify-center gap-2 font-mono text-sm font-bold">
+              <div className="flex items-center justify-center gap-2 text-sm font-bold uppercase tracking-wide">
                 {incident.mitigationActionTaken === "Approved" ? (
                   <>
-                    <CheckCircle className="w-4 h-4 text-emerald-400" />
+                    <CheckCircle className="w-5 h-5 text-emerald-400" />
                     MITIGATION ENFORCED
                   </>
                 ) : (
                   <>
-                    <XCircle className="w-4 h-4 text-slate-400" />
-                    REJECTED (FALSE POSITIVE)
+                    <XCircle className="w-5 h-5 text-slate-400" />
+                    FALSE POSITIVE MARKED
                   </>
                 )}
               </div>
-              <p className="text-xs font-mono text-slate-400 mt-1">
-                Audit trail updated by operator
+              <p className="text-xs text-slate-400 mt-1.5 font-mono">
+                Triage decision locked in SOAR audit trail
               </p>
             </div>
           ) : (
-            <>
+            <div className="flex flex-col gap-2.5">
               <Button
-                variant="emerald"
-                size="lg"
+                variant="primary"
+                size="xl"
                 isLoading={isApproving}
                 onClick={handleApprove}
-                leftIcon={<CheckCircle className="w-4 h-4 text-emerald-950" />}
-                className="w-full text-sm font-bold"
+                leftIcon={<CheckCircle className="w-5 h-5 text-slate-950" />}
+                className="w-full text-sm font-extrabold uppercase tracking-wide shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_25px_rgba(16,185,129,0.45)]"
               >
                 Approve Mitigation
               </Button>
@@ -167,16 +191,16 @@ export const IncidentHeader: React.FC<IncidentHeaderProps> = ({
                 size="lg"
                 isLoading={isRejecting}
                 onClick={handleReject}
-                leftIcon={<XCircle className="w-4 h-4 text-rose-300" />}
-                className="w-full text-sm font-semibold"
+                leftIcon={<XCircle className="w-4.5 h-4.5 text-rose-300" />}
+                className="w-full text-xs sm:text-sm font-bold tracking-wide"
               >
                 Reject (False Positive)
               </Button>
-            </>
+            </div>
           )}
 
           {actionFeedback && (
-            <div className="p-2 rounded bg-slate-950 border border-slate-800 text-[11px] font-mono text-emerald-400 flex items-center gap-1.5 animate-fadeIn">
+            <div className="p-2 rounded bg-[#070b12] border border-slate-800 text-[11px] text-emerald-400 flex items-center gap-1.5">
               <Info className="w-3.5 h-3.5 flex-shrink-0" />
               <span>{actionFeedback}</span>
             </div>
@@ -185,13 +209,13 @@ export const IncidentHeader: React.FC<IncidentHeaderProps> = ({
       </div>
 
       {/* Suggested Mitigation Banner */}
-      <div className="mt-5 p-3.5 rounded-lg bg-emerald-950/20 border border-emerald-500/30 flex items-start gap-3">
+      <div className="mt-4 p-3 rounded bg-emerald-950/20 border border-emerald-500/30 flex items-start gap-2.5">
         <ShieldAlert className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
         <div className="text-xs">
-          <span className="font-mono font-semibold text-emerald-300 mr-2 uppercase tracking-wide">
-            AI Recommended Playbook:
+          <span className="font-semibold text-emerald-300 mr-2 uppercase tracking-wide">
+            Automated Mitigation Playbook:
           </span>
-          <span className="text-slate-300">{incident.suggestedMitigation}</span>
+          <span className="text-slate-300 font-sans">{incident.suggestedMitigation}</span>
         </div>
       </div>
     </div>

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { ShieldAlert, Cpu, RefreshCw } from "lucide-react";
+import { Shield, Radio, Clock, ShieldAlert } from "lucide-react";
 
 export const Navbar: React.FC = () => {
   const [currentTime, setCurrentTime] = useState<string>("");
@@ -20,69 +20,61 @@ export const Navbar: React.FC = () => {
   }, []);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-slate-800/80 bg-slate-950/90 backdrop-blur-md">
-      <div className="max-w-[1720px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        {/* Brand / Title */}
-        <div className="flex items-center gap-4">
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="relative flex items-center justify-center w-10 h-10 rounded-lg bg-emerald-950/60 border border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.25)] group-hover:border-emerald-400 transition-all">
-              <ShieldAlert className="w-5 h-5 text-emerald-400 group-hover:scale-105 transition-transform" />
-              <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-              </span>
+    <header className="sticky top-0 z-50 w-full border-b border-slate-800/80 bg-[#070b12]/95 backdrop-blur-md">
+      <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+        {/* Brand / SOC Triage Logo */}
+        <div className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <div className="flex items-center justify-center w-8 h-8 rounded bg-emerald-950/40 border border-emerald-500/40 text-emerald-400 group-hover:border-emerald-400 transition-colors">
+              <Shield className="w-4 h-4" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-sm sm:text-base font-bold tracking-tight text-white flex items-center gap-2">
-                  GTNIC <span className="text-emerald-400 font-mono">SOC AGENT</span>
+                <span className="text-xs sm:text-sm font-bold tracking-tight text-white font-mono flex items-center gap-1.5">
+                  GTNIC <span className="text-emerald-400">SOAR</span>
                 </span>
-                <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-600/40">
-                  v2.4-AUTONOMOUS
+                <span className="hidden sm:inline-flex text-[9px] uppercase font-mono px-1.5 py-0.2 rounded bg-slate-900 text-slate-400 border border-slate-800">
+                  MONITOR
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 hidden sm:block">
-                Autonomous Security Operations Center & Real-Time Incident Orchestration
+              <p className="text-[10px] text-slate-400 font-mono hidden md:block">
+                Security Operations Center & Automated Threat Queue
               </p>
             </div>
           </Link>
         </div>
 
-        {/* System Status Indicators */}
-        <div className="flex items-center gap-4">
-          {/* Agent Status Badge */}
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-slate-900 border border-slate-800">
-            <span className="text-xs font-mono text-slate-400">Status:</span>
-            <span className="inline-flex items-center gap-1.5 text-xs font-mono font-semibold text-emerald-400">
-              <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#10b981] animate-pulse" />
-              Active
+        {/* Operational Telemetry (Clean, no dummy LLM Core elements) */}
+        <div className="flex items-center gap-2.5 sm:gap-4">
+          {/* Stream / Correlation Status */}
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#0c121e] border border-slate-800 text-[11px] font-mono text-slate-300">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
             </span>
+            <span className="text-slate-400 hidden sm:inline">Engine:</span>
+            <span className="text-emerald-400 font-medium">Live Feed</span>
           </div>
 
-          {/* Engine Load Telemetry */}
-          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md bg-slate-900/60 border border-slate-800 text-xs font-mono text-slate-400">
-            <Cpu className="w-3.5 h-3.5 text-cyan-400" />
-            <span>LLM Core:</span>
-            <span className="text-cyan-300 font-medium">GT-Reason-3.5</span>
+          {/* Sync Polling Indicator */}
+          <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#0c121e] border border-slate-800 text-[11px] font-mono text-slate-400">
+            <Radio className="w-3 h-3 text-cyan-400" />
+            <span>Telemetry: 3s Poll</span>
           </div>
 
-          {/* Polling / Heartbeat indicator */}
-          <div className="hidden lg:flex items-center gap-2 text-xs font-mono text-slate-500">
-            <RefreshCw className="w-3 h-3 text-emerald-500 animate-[spin_6s_linear_infinite]" />
-            <span>Auto-Poll: 3s</span>
+          {/* UTC Clock with Tabular Numbers */}
+          <div className="flex items-center gap-1.5 text-[11px] font-mono text-slate-400 px-2.5 py-1 rounded bg-black/50 border border-slate-800/80 tabular-nums">
+            <Clock className="w-3 h-3 text-slate-500 hidden sm:inline" />
+            <span>{currentTime || "2026-10-22 23:05:00 UTC"}</span>
           </div>
 
-          {/* UTC Clock */}
-          <div className="hidden sm:block text-xs font-mono text-slate-400 px-3 py-1.5 rounded bg-black/40 border border-slate-800/80">
-            {currentTime || "2026-10-22 23:05:00 UTC"}
-          </div>
-
-          {/* Navigation Links */}
+          {/* Navigation Link */}
           <Link
             href="/"
-            className="text-xs font-mono px-3 py-1.5 rounded border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors"
+            className="text-[11px] font-mono px-3 py-1 rounded border border-slate-700/80 bg-slate-900/80 hover:bg-slate-800 text-slate-200 transition-colors flex items-center gap-1.5 active:scale-[0.97]"
           >
-            Incident Queue
+            <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
+            <span>Queue</span>
           </Link>
         </div>
       </div>

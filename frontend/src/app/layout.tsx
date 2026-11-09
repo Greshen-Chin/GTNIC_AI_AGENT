@@ -1,24 +1,11 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/ui/Navbar";
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-mono",
-  display: "swap",
-});
-
 export const metadata: Metadata = {
-  title: "GTNIC Autonomous SOC Agent | Real-Time Security Operations",
+  title: "GTNIC SOC | Cybersecurity Threat Triage & Incident Response",
   description:
-    "Autonomous Cybersecurity Operations Center dashboard powered by AI reasoning, continuous threat hunting, and automated playbook orchestration.",
+    "Autonomous Security Operations Center console for real-time threat triage, alert correlation, and SOAR mitigation orchestration.",
 };
 
 export default function RootLayout({
@@ -27,10 +14,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} dark`}>
-      <body className="min-h-screen bg-slate-950 text-slate-300 font-sans antialiased selection:bg-emerald-500/20 selection:text-emerald-300">
+    <html lang="en" className="dark">
+      <body className="min-h-screen bg-[#070b12] text-slate-200 font-sans antialiased selection:bg-emerald-500/20 selection:text-emerald-300">
         <Navbar />
-        <main className="max-w-[1720px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <main className="max-w-[1800px] mx-auto px-3 sm:px-6 lg:px-8 py-5">
           {children}
         </main>
       </body>
