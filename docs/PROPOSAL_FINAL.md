@@ -54,7 +54,7 @@ Meskipun urgensi otomatisasi sangat jelas, pusat operasi keamanan (*Security Ope
 Untuk menjembatani jurang pemisah antara ledakan miliaran serangan siber dan keterbatasan kapasitas analis manusia, diperlukan paradigma baru: **Autonomous AI Security Operations, Analytics, and Response (SOAR) Agent**. Sistem ini bukan sekadar alat penjawab teks, melainkan agen cerdas otonom yang bertindak sebagai analis keamanan digital Tier-1/Tier-2. Agen ini dirancang untuk:
 * Mendengarkan aliran telemetri SIEM dan aplikasi secara *real-time*.
 * Memecah masalah, merencanakan, dan memanggil berbagai perkakas analitik secara mandiri (*multi-tool calling loop*).
-* Memvalidasi setiap bukti temuan secara deterministik guna menjamin **0% halusinasi**.
+* Memvalidasi setiap bukti temuan secara deterministik guna mengeliminasi klaim tanpa rujukan fakta (*zero ungrounded claims*).
 * Menyajikan analisis berimbang (*Pro vs Contra Evidence*) kepada analis manusia (*Human-in-the-Loop*).
 
 Inovasi revolusioner inilah yang kami bangun melalui **GTNIC SOAR**.
@@ -66,8 +66,8 @@ Inovasi revolusioner inilah yang kami bangun melalui **GTNIC SOAR**.
 ### 2.1 Tujuan
 Tujuan perancangan dan pengembangan karya **GTNIC SOAR** adalah:
 1. **Membangun Agen AI Otonom Multi-Tool Calling:** Mengembangkan arsitektur penalaran agen AI otonom menggunakan model fondasi mutakhir (Gemini 3.8 Flash pada Google Cloud Vertex AI) yang mampu merencanakan langkah investigasi dan mengeksekusi 4 perkakas digital spesialis secara mandiri hingga 3 putaran (*investigative loop*).
-2. **Mengeliminasi Risiko Halusinasi AI secara Deterministik:** Merancang dan menerapkan algoritma *Deterministic Evidence Validator & Claim Guard* berbasis logika terprogram yang memverifikasi setiap klaim model bahasa terhadap fakta konkret hasil eksekusi alat, sehingga menjamin validitas bukti 100%.
-3. **Mereduksi Drastis Mean Time to Detect (MTTD):** Mengotomatisasi proses triase dan investigasi insiden dari waktu manual rata-rata 25 menit menjadi **3–8 detik** per insiden (efisiensi waktu sebesar 99,5%).
+2. **Mengeliminasi Risiko Halusinasi AI melalui Validasi Deterministik:** Merancang dan menerapkan algoritma *Deterministic Evidence Validator & Claim Guard* berbasis logika terprogram yang memverifikasi setiap klaim model bahasa terhadap fakta konkret hasil eksekusi alat, sehingga menjamin seluruh klaim kesimpulan terikat pada fakta empiris.
+3. **Mereduksi Drastis Mean Time to Detect (MTTD):** Mengotomatisasi proses triase dan investigasi insiden dari waktu manual rata-rata 25 menit menjadi **3,5–7 detik** per insiden (efisiensi waktu di atas 99%).
 4. **Menyediakan Antarmuka SOC Kolaboratif Berprinsip Human-in-the-Loop:** Membangun dasbor operasional berbasis Next.js 15 yang menyajikan linimasa serangan (*Attack Story*), matriks bukti Pro vs Kontra, taksonomi MITRE ATT&CK & OWASP Top 10, serta mekanisme persetujuan mitigasi yang akuntabel dan teregistrasi dalam jejak audit forensik.
 
 ### 2.2 Manfaat
@@ -110,11 +110,11 @@ Karya inovasi ini memberikan manfaat langsung dan terukur bagi seluruh ekosistem
                                         • Human-in-the-Loop Action Gate
 ```
 
-1. **Ingesti Telemetri Asinkronus & Deduplikasi Cerdas:** Menangkap aliran log dari Nginx Reverse Proxy (lab OWASP Juice Shop) dan SIEM Wazuh dengan mekanisme deduplikasi jendela waktu geser (*sliding window*) 60 detik untuk mencegah banjir alert (*alert storming*).
-2. **Autonomous Tool Calling Engine:** Model Gemini 3.8 Flash secara mandiri memutuskan alat investigasi yang relevan untuk dijalankan secara paralel maupun berantai, mengekstrak artefak forensik nyata.
-3. **Deterministic Evidence Validator & Claim Guard:** Algoritma penyaring yang memvalidasi setiap kesimpulan AI. Sistem menolak status *CONFIRMED ATTACK* kecuali didukung sekurang-kurangnya 2 bukti faktual valid dari 2 perkakas berbeda.
+1. **Ingesti Telemetri & Deduplikasi Terarah:** Menangkap aliran log dari Nginx Reverse Proxy (lab OWASP Juice Shop) dan SIEM Wazuh dengan pencatatan terstruktur dan parameter deduplikasi berbasis alamat IP dan rule ID untuk memitigasi banjir peringatan redundan (*alert storming*).
+2. **Autonomous Tool Calling Engine:** Model Gemini 3.8 Flash secara mandiri memutuskan alat investigasi yang relevan untuk dijalankan dalam siklus ReAct berantai, mengekstrak artefak forensik nyata.
+3. **Deterministic Evidence Validator & Claim Guard:** Algoritma penyaring yang memvalidasi setiap kesimpulan AI. Sistem menolak status *CONFIRMED ATTACK* kecuali didukung sekurang-kurangnya 2 bukti faktual valid dari 2 perkakas independen berbeda tanpa kontradiksi.
 4. **Bilateral Evidence Matrix (Pro vs Contra Evidence):** Sistem memisahkan secara tegas bukti yang memperkuat dugaan serangan dengan bukti yang meringankan atau kontradiktif (misalnya, payload berbahaya dikirimkan, tetapi server merespons dengan kode *403 Forbidden* dan tidak ada kebocoran baris data).
-5. **Human-in-the-Loop Governance Gate:** Sistem tidak mengeksekusi tindakan blokir secara liar. Agen menyajikan data forensik lengkap, sementara tombol *Approve Mitigation* dan *Reject False Positive* dioperasikan oleh analis manusia dengan perekaman stempel waktu dan identitas analis.
+5. **Human-in-the-Loop Governance Gate:** Sistem tidak mengeksekusi tindakan blokir secara sepihak. Agen menyajikan data forensik lengkap, sementara tombol *Approve Mitigation* dan *Reject False Positive* dioperasikan oleh analis manusia dengan perekaman stempel waktu ISO 8601 dan identitas analis ke audit trail.
 
 ---
 
@@ -171,12 +171,12 @@ Untuk memastikan relevansi produk terhadap kebutuhan nyata industri, GTNIC SOAR 
 
 | Tahapan Operasional | Alur Konvensional (Tanpa GTNIC SOAR) | Alur Modern (Bersama GTNIC SOAR) | Peningkatan Efisiensi |
 |---|---|---|---|
-| **1. Deteksi Awal** | Alert SIEM menumpuk di inbox; analis memeriksa satu per satu manual. | Sensor menangkap log; backend mendeduplikasi dalam jendela 60 detik. | Otomatis & instan (0 detik) |
-| **2. Pengumpulan Bukti** | Analis menyalin IP, membuka query log Wazuh, mencari riwayat login manual (~10 menit). | Agen AI memanggil 4 perkakas digital secara mandiri dan paralel (~2 detik). | **99,6% lebih cepat** |
+| **1. Deteksi Awal** | Alert SIEM menumpuk di inbox; analis memeriksa satu per satu manual. | Sensor menangkap log; sistem triase mengelompokkan alert secara instan. | Otomatis & instan (0 detik) |
+| **2. Pengumpulan Bukti** | Analis menyalin IP, membuka query log Wazuh, mencari riwayat login manual (~10 menit). | Agen AI memanggil 4 perkakas forensik secara mandiri (~3–5 detik). | **99,4% lebih cepat** |
 | **3. Analisis & RAG** | Analis mencari referensi dokumen MITRE ATT&CK di browser secara terpisah (~8 menit). | Pencarian vektor otomatis ke PostgreSQL pgvector dengan indeks HNSW (~1 detik). | **99,8% lebih cepat** |
-| **4. Validasi Halusinasi** | Risiko human error akibat kelelahan atau asumsi salah analis. | Deterministic Claim Guard memverifikasi fakta matematis; 0% halusinasi. | **Akurasi 100% konsisten** |
-| **5. Sintesis & Keputusan** | Analis mengetik laporan insiden dan memutuskan tindakan (~7 menit). | Dasbor menyajikan Attack Story & Pro vs Contra; analis mengklik Approve (5 detik). | **98,8% lebih cepat** |
-| **TOTAL WAKTU TRIASE** | **~25 - 30 Menit per Tiket** | **3 - 8 Detik per Tiket** | **EFISIENSI WAKTU 99,5%** |
+| **4. Validasi Halusinasi** | Risiko human error akibat kelelahan atau asumsi salah analis. | Deterministic Claim Guard memverifikasi fakta matematis; eliminasi klaim tanpa bukti. | **Akurasi terverifikasi faktual** |
+| **5. Sintesis & Keputusan** | Analis mengetik laporan insiden dan memutuskan tindakan (~7 menit). | Dasbor menyajikan Attack Story & Pro vs Contra; otorisasi via tombol Approve (5 detik). | **98,8% lebih cepat** |
+| **TOTAL WAKTU TRIASE** | **~25 - 30 Menit per Tiket** | **3,5 - 7 Detik per Tiket** | **EFISIENSI WAKTU >99%** |
 
 ### 3.3 Estimasi Potensi Pasar (Market Sizing)
 * **Total Addressable Market (TAM):** Pasar global *Security Orchestration, Automation, and Response (SOAR)* diproyeksikan mencapai **USD 3,2 miliar pada tahun 2028** (CAGR 15,8%).
@@ -205,42 +205,44 @@ GTNIC SOAR dibangun dengan arsitektur komprehensif yang mencakup 12 fitur fungsi
 ```
 
 1. **Autonomous Multi-Tool Calling Engine (ReAct Cycle):**  
-   Mengimplementasikan model penalaran ReAct (*Reasoning + Action*) menggunakan Vertex AI Gemini 3.8 Flash. Model mengevaluasi konteks insiden mentah, memformulasikan hipotesis ancaman, dan menentukan perkakas yang harus dijalankan. Agen dapat menjalankan hingga 3 putaran investigasi berantai, di mana hasil dari alat pertama (misal: penemuan IP penyerang) menjadi masukan bagi alat berikutnya (misal: query riwayat alert dan profil autentikasi).
+   Mengimplementasikan model penalaran ReAct (*Reasoning + Action*) menggunakan Vertex AI Gemini 3.8 Flash. Model mengevaluasi konteks insiden mentah, memformulasikan hipotesis ancaman, dan menentukan perkakas yang harus dijalankan. Agen dapat menjalankan hingga 3 putaran investigasi berantai, di mana hasil dari alat pertama menjadi masukan bagi alat berikutnya.
 2. **Tool 1: Historical Alert Correlator (`search_alerts_by_ip`):**  
-   Perkakas asinkronus yang berkomunikasi langsung dengan Wazuh Indexer (OpenSearch backend) melalui REST API terotentikasi. Mengambil seluruh telemetri log peringatan yang berkaitan dengan alamat IP sumber dalam jendela waktu 24 jam terakhir, menghitung frekuensi insiden, dan mendeteksi anomali pola eskalasi.
+   Perkakas yang berkomunikasi langsung dengan Wazuh Indexer (OpenSearch backend) melalui REST API terotentikasi. Mengambil telemetri log peringatan yang berkaitan dengan alamat IP sumber dalam jendela waktu 24 jam terakhir, menghitung frekuensi insiden, dan mendeteksi anomali pola eskalasi.
 3. **Tool 2: Authentication Behavior Profiler (`get_login_history`):**  
-   Menganalisis catatan log autentikasi pengguna pada endpoint target. Menghitung rasio kegagalan login (*failed logins*) terhadap login yang sukses (*successful logins*). Mampu mengidentifikasi teknik serangan *brute force*, *credential stuffing*, dan *password spraying* yang mengindikasikan upaya pembobolan kredensial akun administrator.
+   Menganalisis catatan log autentikasi pengguna pada Wazuh Indexer (rule 100100 login gagal vs rule 100103 login berhasil). Mengevaluasi volume dan rasio kegagalan login untuk mendeteksi indikasi percobaan pembobolan kredensial (*brute force*).
 4. **Tool 3: Deep Web Attack Inspector (`inspect_web_attack`):**  
-   Modul inspeksi mendalam payload injeksi web. Melakukan dekode URL (*URL decoding*) ganda, analisis token sintaksis terhadap payload berbahaya (seperti statemen SQL: `UNION SELECT`, `' OR 1=1--`, tag HTML skrip XSS: `<script>`, serta pola *directory traversal*: `../../etc/passwd`). Alat ini memeriksa parameter HTTP yang disasar serta kode status balasan server (*HTTP Response Code*).
+   Modul inspeksi mendalam payload injeksi web. Melakukan analisis token sintaksis terhadap payload injeksi web (SQL Injection: `UNION SELECT`, `' OR 1=1--`, dan XSS: `<script>`, event handler). Alat ini memeriksa parameter HTTP yang disasar serta kode status balasan server (*HTTP Response Code* 200, 403, 500). *(Deteksi Path Traversal dan Command Injection turut diperkuat pada lapisan ingress gateway reverse proxy).*
 5. **Tool 4: MITRE ATT&CK & OWASP Semantic RAG (`mitre_owasp_rag`):**  
-   Menjalankan *Retrieval-Augmented Generation* (RAG) berbasis kemiripan semantik (*semantic similarity*). Deskripsi insiden diubah menjadi representasi vektor berdimensi 768 menggunakan Vertex AI `text-embedding-004`. Vektor tersebut dicocokkan dengan basis pengetahuan taksonomi MITRE ATT&CK Enterprise Matrix v15 dan OWASP Top 10 pada basis data PostgreSQL menggunakan indeks HNSW *cosine distance*.
+   Menjalankan *Retrieval-Augmented Generation* (RAG) berbasis kemiripan semantik (*semantic similarity*). Deskripsi insiden diubah menjadi representasi vektor berdimensi 768 menggunakan Vertex AI `text-embedding-005`. Vektor tersebut dicocokkan dengan basis pengetahuan taksonomi MITRE ATT&CK Enterprise Matrix v15 dan OWASP Top 10 pada basis data PostgreSQL menggunakan indeks HNSW *cosine distance*.
 6. **Deterministic Anti-Hallucination & Claim Guard Engine:**  
-   Inovasi algoritma pertahanan yang membedah hasil sintesis teks model bahasa besar. Klaim yang diajukan model diuji silang (*cross-examined*) secara matematis terhadap fakta empiris yang dihasilkan oleh eksekusi alat. Jika sebuah klaim tidak memiliki rujukan bukti faktual (*evidence reference*), klaim tersebut secara otomatis dicoret (*stripped*). Agen secara mutlak dilarang menetapkan status *CONFIRMED ATTACK* kecuali didukung oleh sekurang-kurangnya 2 bukti faktual valid dari 2 perkakas berbeda.
+   Inovasi algoritma pertahanan yang membedah hasil sintesis teks model bahasa besar. Klaim yang diajukan model diuji silang (*cross-examined*) secara matematis terhadap fakta empiris yang dihasilkan oleh eksekusi alat (`evidence_ref`). Jika sebuah klaim tidak memiliki rujukan bukti faktual, klaim tersebut secara otomatis dicoret (*stripped*). Agen secara mutlak dilarang menetapkan status *CONFIRMED ATTACK* kecuali didukung oleh sekurang-kurangnya 2 bukti faktual valid dari 2 perkakas independen berbeda tanpa kontradiksi.
 7. **Bilateral Evidence Matrix (Pro vs Contra Evidence):**  
    Struktur penalaran dua sisi yang menyajikan fakta objektif kepada analis. *Pro Evidence* memuat seluruh temuan yang memperkuat dugaan penyerangan (misal: *ditemukannya pola signature SQLi UNION SELECT pada parameter produk*). Sementara *Contra Evidence* memuat fakta yang melemahkan dugaan atau membuktikan serangan telah gagal (misal: *server merespons HTTP 403 Forbidden dan tidak ada baris data yang bocor*).
 8. **Deterministic Confidence & Severity Scoring Engine:**  
-   Perhitungan nilai risiko tidak diserahkan kepada intuisi bebas model bahasa. Nilai keparahan (*Severity Score*, skala 0–100) dan nilai keyakinan (*Confidence Score*, skala 0–100%) dihitung menggunakan formula deterministik terprogram yang memperhitungkan faktor: kritisnya kerentanan target, status respons HTTP, keterulangan serangan dari IP yang sama, dan rasio validitas bukti.
+   Perhitungan nilai risiko tidak diserahkan kepada intuisi bebas model bahasa. Nilai keparahan (*Severity Score*, skala 0–100) dan nilai keyakinan (*Confidence Score*, skala 0–100%) dihitung menggunakan formula deterministik terprogram berbasis level rule Wazuh, bobot bukti pro efektif, dan penalti bukti kontra.
 9. **Real-Time SOC Command Dashboard:**  
    Antarmuka web tingkat produksi yang dibangun dengan Next.js 15, React 19, TypeScript, dan Tailwind CSS. Mengusung ergonomi visual *High-Tech SOC Dark Theme* yang ramah mata analis untuk pemantauan jangka panjang. Dilengkapi dengan auto-polling adaptif 3 detik (SWR), bilah status ringkasan (Active Threats, Critical Priority, Enforced Mitigations, Avg Confidence), filter multikategori, dan pencarian cepat.
 10. **Human-in-the-Loop Governance & Multi-tier Audit Trail:**  
-    Mekanisme gerbang persetujuan manusia. Analis dapat mengklik tombol *[Approve Mitigation]* untuk menyetujui langkah blokir atau *[Reject False Positive]* untuk mengarsipkan peringatan palsu. Sistem merekam jejak audit komprehensif ke basis data: nama analis penanggung jawab (`decided_by`), waktu keputusan presisi ISO 8601 (`decided_at`), serta seluruh riwayat input/output eksekusi alat pada *Tool Trace Terminal*.
+    Mekanisme gerbang persetujuan manusia. Analis dapat mengklik tombol *[Approve Mitigation]* untuk mencatat otorisasi mitigasi atau *[Reject False Positive]* untuk mengarsipkan peringatan palsu. Sistem merekam jejak audit komprehensif ke basis data: nama analis penanggung jawab (`decided_by`), waktu keputusan presisi ISO 8601 (`decided_at`), serta seluruh riwayat input/output eksekusi alat pada *Tool Trace Terminal*.
 11. **Multi-Channel Real-Time Alerting (Discord Bot & n8n):**  
-    Integrasi bot komunikasi operasional yang memanfaatkan Discord REST API v10 asinkronus dan webhook n8n. Setiap kali insiden berstatus *Critical* atau *High* terdeteksi, bot secara otomatis mengirimkan notifikasi *rich embed* lengkap dengan kode warna keparahan, ringkasan kronologi serangan, alamat IP penyerang, dan tautan langsung ke dasbor insiden.
+    Integrasi bot komunikasi operasional yang memanfaatkan Discord REST API v10 asinkronus dan webhook n8n. Setiap kali insiden berstatus *Critical* atau *High* terdeteksi, bot secara otomatis mengirimkan notifikasi *rich embed* lengkap dengan kode warna keparahan, ringkasan kronologi serangan, alamat IP penyerang, dan tautan langsung ke dasbor insiden tanpa membebani latensi investigasi.
 12. **Live Attack Simulation Lab (OWASP Juice Shop Integration):**  
     Integrasi penuh dengan aplikasi lab pengujian kerentanan standar industri, OWASP Juice Shop v17, yang berjalan dalam kontainer terisolasi di balik Nginx Reverse Proxy. Menyediakan fasilitas demonstrasi langsung (*live demo*) di mana juri atau penguji dapat melancarkan serangan nyata melalui browser dan menyaksikan respons instan agen AI dalam hitungan detik.
 
 ### 4.2 Benchmark Evaluasi Kinerja (GTNIC SOAR vs Triage Baseline)
 
-Berdasarkan pengujian komparatif menyeluruh yang tercatat dalam tabel `benchmark_runs` terhadap skenario serangan web dan anomali autentikasi nyata:
+Berdasarkan pengujian komparatif terkalibrasi pada 12 skenario serangan web dan telemetri SIEM di lab uji:
 
 | Metrik Evaluasi | Analis Manusia Manual | Baseline Chatbot LLM Biasa | **GTNIC SOAR (AI Agent)** |
 |---|:---:|:---:|:---:|
-| **Rata-rata Waktu Triase & Investigasi** | 20 – 30 Menit | 15 – 30 Detik | **3,2 – 6,8 Detik** |
-| **Tingkat Halusinasi Faktual (Log/CVE Fiktif)** | 0% (Manual) | 28% – 42% (Tinggi) | **0% (Eliminasi Total)** |
+| **Rata-rata Waktu Triase & Investigasi** | 20 – 30 Menit | 15 – 30 Detik | **3,5 – 6,8 Detik** |
+| **Tingkat Halusinasi Klaim (Ungrounded)** | 0% (Manual) | 28% – 42% (Tinggi) | **0% Klaim Tanpa Bukti (Tervalidasi)** |
 | **Korelasi Terhadap Standar MITRE/OWASP** | Parsial (Tergantung skill analis) | Parsial (Pengetahuan lama) | **100% Otomatis (pgvector RAG)** |
-| **Kapasitas Penanganan Tiket per Jam** | 2 – 3 Tiket / Analis | 10 – 20 Tiket (Pasif) | **> 1.000 Tiket / Jam (Otonom)** |
+| **Estimasi Kapasitas Penanganan per Jam** | 2 – 3 Tiket / Analis | 10 – 20 Tiket (Pasif) | **400 – 600 Tiket / Jam (Otonom)\*** |
 | **Transparansi Jejak Audit Eksekusi Alat** | Manual (Catatan tiket) | 0% (Black Box) | **100% (Tool Trace Terminal)** |
 | **Penyajian Bukti Pro vs Kontra** | Jarang (Cenderung bias) | Tidak Ada | **Tersedia Lengkap (Bilateral)** |
+
+*\*Catatan: Dihitung berdasarkan kapasitas inferensi terdistribusi dan batasan rate limit API; diuji pada skenario benchmark terkalibrasi.*
 
 ### 4.3 Keunikan & Posisi Kompetitif di Pasar Industri
 
@@ -253,8 +255,8 @@ Berdasarkan pengujian komparatif menyeluruh yang tercatat dalam tabel `benchmark
 ├──────────────────────────┼───────────────────────┼────────────────────────┼───────────────────────┤
 │ Biaya Lisensi            │ Ratusan juta - Miliar │ Murah / API Pay-as-go  │ Efisien & Open-Source │
 │ Fleksibilitas Playbook   │ Kaku (Rule-based)     │ Bebas tapi Liar        │ Adaptif & Terarah     │
-│ Risiko Halusinasi        │ Nol (Aturan kaku)     │ Sangat Tinggi          │ Nol (Claim Guard)     │
-│ Kecepatan Eksekusi       │ Menit                 │ Detik                  │ 3–8 Detik             │
+│ Risiko Halusinasi        │ Nol (Aturan kaku)     │ Sangat Tinggi          │ Eliminasi (Claim Guard│
+│ Kecepatan Eksekusi       │ Menit                 │ Detik                  │ 3,5–7 Detik           │
 │ Kesiapan Deployment      │ Butuh berbulan-bulan  │ Prototipe notebook     │ Production Docker     │
 │ Human-in-the-Loop        │ Parsial               │ Tidak Ada              │ Terintegrasi Penuh    │
 └──────────────────────────┴───────────────────────┴────────────────────────┴───────────────────────┘
@@ -271,18 +273,19 @@ Arsitektur perangkat lunak dirancang mengikuti prinsip *Separation of Concerns* 
 | Komponen Arsitektur | Teknologi / Pustaka | Versi | Justifikasi Pemilihan & Fungsi |
 |---|---|---|---|
 | **AI Foundation Model** | Google Cloud Vertex AI (Gemini 3.8 Flash) | Current | Model multimodal berkecepatan tinggi dengan latensi ultra-rendah dan dukungan native *Function Calling* / Tool Calling. |
-| **Vektor Embedding** | Vertex AI `text-embedding-004` | 768-dim | Representasi semantik berkualitas tinggi untuk taksonomi keamanan siber MITRE & OWASP. |
+| **Vektor Embedding** | Vertex AI `text-embedding-005` | 768-dim | Representasi semantik berkualitas tinggi untuk taksonomi keamanan siber MITRE & OWASP. |
 | **Backend Framework** | FastAPI | 0.115+ | Framework asinkronus Python berkinerja tinggi, validasi tipe data Pydantic v2, dan dokumentasi otomatis OpenAPI. |
 | **Runtime Language** | Python | 3.11 | Keseimbangan optimal antara kecepatan eksekusi, ekosistem AI/data science, dan pustaka asinkronus modern. |
-| **Relational Database** | PostgreSQL Enterprise | 16.2 | Basis data relasional standar industri dengan keandalan transaksi ACID penuh dan integritas data enterprise. |
+| **Relational Database** | PostgreSQL 16 + pgvector | 16.x / 0.7+ | Basis data relasional standar industri dengan keandalan transaksi ACID penuh dan pencarian vektor kemiripan kosinus (HNSW). |
 | **Vector Engine** | `pgvector` Extension | 0.7+ | Mesin pencarian vektor berbasis HNSW (*Hierarchical Navigable Small World*) terintegrasi dalam PostgreSQL. |
-| **SIEM & EDR Engine** | Wazuh Manager & Indexer | 4.8+ | Platform SIEM open-source enterprise berbasis OpenSearch untuk agregasi log host dan jaringan. |
+| **SIEM & EDR Engine** | Wazuh Manager & Indexer | 4.9.0 / 4.8+ | Platform SIEM open-source enterprise berbasis OpenSearch untuk agregasi log host dan jaringan. |
 | **Aplikasi Target Lab** | OWASP Juice Shop | 17.x | Standar internasional lingkungan aplikasi web rentan untuk simulasi uji penetrasi dan respons keamanan. |
+| **Reverse Proxy** | Nginx HTTP Proxy | 1.27-alpine | Ingesti lalu lintas HTTP lab OWASP Juice Shop dengan format log JSON terstruktur (`juice_json`). |
 | **Frontend Framework** | Next.js (React 19) | 15.x | Server-Side Rendering (SSR), App Router modern, performa tinggi, dan integrasi mulus dengan Vercel Edge. |
 | **Styling & UI Kit** | Tailwind CSS + Lucide Icons | 3.4+ | Desain antarmuka responsif *Cyberpunk High-Tech SOC Dark Theme* yang ergonomis bagi mata analis. |
-| **Data Fetching Layer** | SWR (Stale-While-Revalidate) | 2.2+ | Mekanisme auto-polling adaptif 3 detik dengan sinkronisasi instan tanpa beban refresh halaman. |
+| **Data Polling Layer** | SWR (Stale-While-Revalidate) | 2.2+ | Mekanisme auto-polling adaptif 3 detik dengan sinkronisasi instan tanpa beban refresh halaman. |
+| **Notifikasi Cepat** | Discord REST API v10 + n8n | Current | Notifikasi instan berformat rich embed darurat ke kanal Discord tim operasional secara asinkronus. |
 | **Orkestrasi Kontainer** | Docker & Docker Compose | 26.x | Isolasi 6 kontainer modular (`postgres`, `soar-api`, `juice-shop`, `nginx-proxy`, `log-forwarder`, `n8n`). |
-| **CI/CD Automation** | GitHub Actions | Runner VM | Otomasi pengujian kode unit/integrasi dan penyebaran otomatis (*continuous deployment*) ke cloud. |
 
 ### 5.2 Arsitektur Sistem & Diagram Alur Data (End-to-End Flow)
 
@@ -359,24 +362,41 @@ Berikut adalah visualisasi arsitektur komprehensif sistem GTNIC SOAR:
 
 ### 5.3 Formulasi Matematis: Anti-Halusinasi & Skoring Deterministik
 
-Untuk menjamin akurasi ilmiah, GTNIC SOAR menerapkan formulasi matematis ketat dalam menilai validitas dan tingkat risiko ancaman:
+Untuk menjamin objektivitas ilmiah dan kepastian audit, GTNIC SOAR menerapkan formulasi matematis deterministik terprogram dalam menilai validitas bukti, tingkat keparahan, dan derajat keyakinan:
 
-#### A. Rasio Validitas Bukti (*Evidence Validity Ratio* / $EVR$)
-Didefinisikan sebagai rasio jumlah bukti yang didukung oleh fakta empiris hasil eksekusi alat ($E_{valid}$) terhadap total klaim yang dihasilkan oleh model bahasa ($E_{total}$):
+#### A. Kriteria Validitas Bukti & Aturan Status Investigasi
+Setiap bukti $e$ wajib memiliki pasangan `tool` dan `evidence_ref` yang cocok persis dengan himpunan fakta empiris $F_{empiris}$ yang dihasilkan dari eksekusi perkakas:
 
-$$EVR = \frac{|E_{valid}|}{|E_{total}|} = \frac{|E_{pro}| + |E_{contra}|}{|E_{pro}| + |E_{contra}| + |E_{invalid}|}$$
+$$e \text{ valid} \iff e.\text{evidence\_ref} \in F_{empiris}$$
 
-Jika $EVR < 0.60$ atau $|E_{valid}| < 2$, sistem secara otomatis menurunkan status insiden menjadi `UNCERTAIN` atau membatalkan klasifikasi `CONFIRMED ATTACK`.
+Bukti pro efektif ($E_{pro\_eff}$) dibatasi maksimal 2 bukti per perkakas independen guna mencegah dominasi satu sumber. Aturan penetapan status insiden:
+* **CONFIRMED:** Mewajibkan $|E_{pro\_eff}| \ge 2$, berasal dari minimal 2 perkakas independen berbeda, dan $|E_{contra}| = 0$.
+* **LIKELY:** Memiliki bukti pendukung valid ($|E_{pro\_valid}| \ge 1$), namun belum memenuhi seluruh syarat mutlak *Confirmed*.
+* **UNCERTAIN:** Jumlah perkakas yang berhasil dijalankan $< 2$, atau tidak ada bukti pro valid ($|E_{pro\_valid}| = 0$), atau terjadi inkonsistensi telemetri alat.
+* **FALSE_POSITIVE:** Terpenuhi indikasi non-serangan, namun ditahan menjadi *UNCERTAIN* apabila $|E_{pro\_valid}| \ge 2$ untuk ditinjau manual oleh analis.
 
 #### B. Perhitungan Skor Keparahan Deterministik (*Deterministic Severity Score* / $S$)
-Skor keparahan dihitung berdasarkan bobot dampak kerentanan dasar ($W_{base}$), faktor keberhasilan serangan berdasarkan status HTTP ($F_{status}$), dan faktor pengulangan serangan ($F_{rep}$):
+Skor keparahan dihitung secara deterministik berbasis level rule Wazuh, bobot bukti pro efektif, dan penalti bukti kontra:
 
-$$S = \min\left(100, \; \left( W_{base} \times F_{status} \right) + F_{rep} \right)$$
+$$S = \text{clamp}\Big(10, \; 100, \; (L_{wazuh} \times 5) + (\min(|E_{pro\_eff}|, 4) \times 10) - (\min(|E_{contra}|, 4) \times 12) + \Delta_{confirmed}\Big)$$
 
 Di mana:
-* $W_{base} = 85$ untuk SQL Injection, 75 untuk Command Injection, 60 untuk XSS, 50 untuk Path Traversal.
-* $F_{status} = 1.0$ jika HTTP Response $200$ (berhasil), $0.7$ jika HTTP Response $500$ (error internal), $0.3$ jika HTTP Response $403/401$ (terblokir oleh sistem).
-* $F_{rep} = \min(15, \; \text{hits} \times 3)$ berdasarkan frekuensi serangan IP dalam 24 jam.
+* $L_{wazuh}$ adalah tingkat level rule Wazuh (skala 1–15).
+* $\min(|E_{pro\_eff}|, 4) \times 10$ adalah kontribusi bukti pendukung yang terverifikasi (maksimal $+40$ poin).
+* $\min(|E_{contra}|, 4) \times 12$ adalah penalti bukti kontradiktif/meringankan (maksimal $-48$ poin).
+* $\Delta_{confirmed} = 20$ jika status investigasi berstatus `CONFIRMED`, dan $0$ untuk status lainnya.
+* Nilai akhir dibatasi (*clamped*) pada rentang 10 hingga 100, yang diklasifikasikan ke dalam: **Critical** ($S \ge 80$), **High** ($60 \le S < 80$), **Medium** ($40 \le S < 60$), dan **Low** ($S < 40$).
+
+#### C. Perhitungan Skor Keyakinan Deterministik (*Deterministic Confidence Score* / $C$)
+Skor keyakinan merefleksikan rasio keabsahan klaim model dan diversitas perkakas yang berhasil dieksekusi:
+
+$$C = \text{clamp}\Big(0, \; 100, \; \text{round}\left(100 \times \left(0.5 \times \text{Validity} + 0.5 \times \text{Coverage}\right)\right) - P_{inconsistent} - P_{claim}\Big)$$
+
+Di mana:
+* $\text{Validity} = \frac{|E_{valid}|}{|E_{claimed}|}$ (rasio klaim yang berhasil divalidasi ke fakta empiris).
+* $\text{Coverage} = \min\left(1.0, \; \frac{|\text{Tools}_{digunakan}|}{3}\right)$ (cakupan keragaman perkakas investigasi).
+* $P_{inconsistent} = 20$ poin penalti jika ada inkonsistensi antara data alert pemicu dan indexer.
+* $P_{claim} = 10 \times N_{unsupported}$ jika terdapat klaim frasa berlebih yang dicegat oleh Claim Guard.
 
 ### 5.4 Skema Basis Data Relasional & Vektor
 
@@ -455,8 +475,8 @@ CREATE TABLE benchmark_runs (
 
 Untuk menjamin kejelasan ruang lingkup pengujian Dewan Juri dan kepatuhan etika rekayasa perangkat lunak enterprise, batasan sistem GTNIC SOAR ditetapkan sebagai berikut:
 
-1. **Pertahanan Pasif Terkendali (*Controlled Passive Defense by Default*):**  
-   Agen AI secara sengaja tidak diizinkan melakukan modifikasi aturan firewall, eksekusi perintah terminal sistem, atau pemblokiran port jaringan secara otomatis (*read-only mitigation recommendation*). Seluruh tindakan mitigasi aktif mewajibkan penekanan tombol persetujuan oleh analis manusia (*Human-in-the-Loop Approval Gate*) guna mencegah dampak pemblokiran yang tidak diinginkan (*accidental self-DoS*) pada infrastruktur produksi.
+1. **Pertahanan Pasif & Human Approval Gate (*Controlled Passive Defense*):**  
+   Agen AI secara sengaja beroperasi dalam mode investigatif *read-only*. Aksi *[Approve Mitigation]* mencatat otorisasi analis manusia dan merekam audit trail forensik ke basis data, bukan langsung mengeksekusi modifikasi firewall secara sepihak. Integrasi eksekusi aktif ke WAF perimeter dijadwalkan pada Roadmap Pengembangan Lanjutan Fase 1 (Q1 2027).
 2. **Cakupan Sensor Serangan Web Eksperimental:**  
    Telemetri deteksi serangan web saat ini difokuskan pada spektrum kerentanan *OWASP Top 10* (SQL Injection, Cross-Site Scripting, Directory Traversal, Command Injection, dan Authentication Anomalies) yang dialirkan dari lab OWASP Juice Shop terintegrasi serta log Wazuh Indexer.
 3. **Mekanisme Fail-Safe terhadap Ketergantungan Eksternal:**  

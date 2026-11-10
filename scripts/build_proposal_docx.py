@@ -118,28 +118,6 @@ def build_full_proposal():
         r2.font.size = Pt(12)
         return p
 
-    def add_callout_box(text, prefix="Catatan Penting: "):
-        table = doc.add_table(rows=1, cols=1)
-        table.alignment = WD_TABLE_ALIGNMENT.CENTER
-        cell = table.cell(0, 0)
-        cell.width = Cm(14.0)
-        set_cell_background(cell, "F8FAFC")
-        set_cell_margins(cell, top=140, bottom=140, left=180, right=180)
-        p = cell.paragraphs[0]
-        p.paragraph_format.space_after = Pt(2)
-        p.paragraph_format.line_spacing = 1.25
-        if prefix:
-            r_pre = p.add_run(prefix)
-            r_pre.bold = True
-            r_pre.font.name = 'Times New Roman'
-            r_pre.font.size = Pt(11)
-            r_pre.font.color.rgb = RGBColor(15, 23, 42)
-        r_txt = p.add_run(text)
-        r_txt.italic = True
-        r_txt.font.name = 'Times New Roman'
-        r_txt.font.size = Pt(11)
-        r_txt.font.color.rgb = RGBColor(51, 65, 85)
-
     def add_image_placeholder(title, caption):
         table = doc.add_table(rows=1, cols=1)
         table.alignment = WD_TABLE_ALIGNMENT.CENTER
@@ -276,8 +254,8 @@ def build_full_proposal():
         "Sistem ini bukan sekadar alat penjawab obrolan teks, melainkan agen cerdas otonom yang bertindak sebagai analis "
         "keamanan digital Tier-1/Tier-2. Agen ini dirancang untuk mendengarkan telemetri secara real-time, merencanakan dan mengeksekusi "
         "investigasi multi-tahap secara mandiri menggunakan perkakas digital (tool calling), memvalidasi fakta secara deterministik guna "
-        "menjamin 0% halusinasi, dan menyajikan matriks bukti berimbang (Pro vs Contra Evidence) kepada analis manusia (Human-in-the-Loop). "
-        "Inovasi revolusioner inilah yang kami wujudkan melalui GTNIC SOAR."
+        "mengeliminasi klaim tanpa rujukan bukti faktual (ungrounded claims), dan menyajikan matriks bukti berimbang (Pro vs Contra Evidence) "
+        "kepada analis manusia (Human-in-the-Loop). Inovasi inilah yang kami wujudkan melalui GTNIC SOAR."
     )
 
     # ================= 2. TUJUAN, MANFAAT, DAN SOLUSI =================
@@ -285,8 +263,8 @@ def build_full_proposal():
     
     add_h2("2.1 Tujuan")
     add_bullet(" Mengembangkan mesin agen AI otonom menggunakan Gemini 3.8 Flash pada Google Cloud Vertex AI dengan kapabilitas penalaran mandiri dan multi-tool calling hingga 3 putaran investigasi.", bold_prefix="1. Otomasi Investigasi Berbasis Multi-Tool Calling:")
-    add_bullet(" Mengimplementasikan mekanisme verifikasi matematis dan logika terprogram (Deterministic Validator & Claim Guard) yang menjamin 100% klaim investigasi didasarkan pada fakta telemetri konkret.", bold_prefix="2. Eliminasi Halusinasi AI melalui Validasi Deterministik:")
-    add_bullet(" Memangkas waktu triase awal dan forensik digital dari rata-rata 25 menit per insiden menjadi 3–8 detik (efisiensi 99,5%).", bold_prefix="3. Reduksi Drastis Mean Time to Detect (MTTD):")
+    add_bullet(" Mengimplementasikan mekanisme verifikasi matematis dan logika terprogram (Deterministic Validator & Claim Guard) yang menjamin seluruh klaim dalam sintesis investigasi terikat secara faktual pada data telemetri nyata hasil eksekusi alat.", bold_prefix="2. Eliminasi Halusinasi AI melalui Validasi Deterministik:")
+    add_bullet(" Memangkas waktu triase awal dan forensik digital dari rata-rata 25 menit per insiden menjadi 3,5–7 detik (efisiensi waktu di atas 99%).", bold_prefix="3. Reduksi Drastis Mean Time to Detect (MTTD):")
     add_bullet(" Menyediakan antarmuka SOC berbasis web modern yang transparan, menyajikan linimasa serangan, perbandingan bukti pro vs kontra, referensi taksonomi MITRE ATT&CK, dan alur persetujuan mitigasi oleh analis manusia.", bold_prefix="4. Penyediaan Dasbor Human-in-the-Loop:")
 
     add_h2("2.2 Manfaat")
@@ -299,9 +277,9 @@ def build_full_proposal():
         "GTNIC SOAR menghadirkan arsitektur agen cerdas terintegrasi (end-to-end) yang menghubungkan sistem pemantauan "
         "keamanan enterprise dengan kecerdasan buatan fondasi mutakhir:"
     )
-    add_bullet(" Log lalu lintas HTTP mentah dari Nginx proxy lab OWASP Juice Shop dan log SIEM Wazuh dialirkan secara asinkronus ke backend FastAPI dengan deduplikasi jendela geser 60 detik.", bold_prefix="1. Ingesti Telemetri Real-Time & Deduplikasi:")
-    add_bullet(" Agen AI Gemini 3.8 Flash bertindak sebagai investigator otonom dengan 4 perkakas digital: (1) search_alerts_by_ip untuk riwayat alert 24 jam, (2) get_login_history untuk profil autentikasi, (3) inspect_web_attack untuk deep parsing payload injeksi web, dan (4) mitre_owasp_rag untuk pencarian semantik taktik penyerang di pgvector.", bold_prefix="2. Penalaran Otonom & Multi-Tool Calling:")
-    add_bullet(" Algoritma validator deterministik memverifikasi setiap klaim LLM terhadap data fakta mentah hasil eksekusi perkakas. Klaim yang tidak memiliki rujukan fakta faktual secara otomatis dieliminasi.", bold_prefix="3. Lapisan Anti-Halusinasi & Claim Guard:")
+    add_bullet(" Log lalu lintas HTTP mentah dari Nginx proxy lab OWASP Juice Shop dan log SIEM Wazuh dialirkan ke backend FastAPI dengan parameter deduplikasi IP sumber dan rule ID untuk memitigasi banjir peringatan berulang.", bold_prefix="1. Ingesti Telemetri & Deduplikasi Terarah:")
+    add_bullet(" Agen AI Gemini 3.8 Flash bertindak sebagai investigator otonom dengan 4 perkakas digital: (1) search_alerts_by_ip untuk riwayat alert 24 jam, (2) get_login_history untuk profil autentikasi, (3) inspect_web_attack untuk deep parsing payload web, dan (4) mitre_owasp_rag untuk pencarian semantik taktik penyerang di pgvector.", bold_prefix="2. Penalaran Otonom & Multi-Tool Calling:")
+    add_bullet(" Algoritma validator deterministik memverifikasi setiap klaim LLM terhadap data fakta mentah hasil eksekusi perkakas. Klaim yang tidak memiliki rujukan fakta faktual secara otomatis dieliminasi oleh Claim Guard.", bold_prefix="3. Lapisan Anti-Halusinasi & Claim Guard:")
     add_bullet(" Sistem menyajikan argumentasi berimbang antara bukti yang memperkuat dugaan serangan (Pro) dan bukti yang meringankan atau kontradiktif (Contra), mencegah bias konfirmasi.", bold_prefix="4. Matriks Bukti Bilateral (Pro vs Contra Evidence):")
     add_bullet(" Keputusan eksekusi mitigasi akhir (pemblokiran IP atau penutupan tiket false positive) berada di tangan analis manusia melalui antarmuka dasbor dengan rekaman audit trail lengkap.", bold_prefix="5. Tata Kelola Human-in-the-Loop:")
 
@@ -362,12 +340,12 @@ def build_full_proposal():
         r.font.color.rgb = RGBColor(255, 255, 255)
 
     data_wf = [
-        ("1. Deteksi Awal", "Alert menumpuk di inbox; analis memeriksa manual.", "Sensor menangkap log; dedup otomatis jendela 60s.", "Otomatis (0 detik)"),
-        ("2. Kumpul Bukti", "Salin IP, buka Wazuh, cek riwayat manual (~10 mnt).", "Agen panggil 4 tool paralel mandiri (~2 detik).", "99,6% lebih cepat"),
+        ("1. Deteksi Awal", "Alert menumpuk di inbox; analis memeriksa manual.", "Sensor menangkap log; sistem triase mengelompokkan alert secara instan.", "Otomatis (0 detik)"),
+        ("2. Kumpul Bukti", "Salin IP, buka Wazuh, cek riwayat manual (~10 mnt).", "Agen panggil 4 tool forensik secara mandiri (~3-5 detik).", "99,4% lebih cepat"),
         ("3. Analisis & RAG", "Cari MITRE ATT&CK manual di browser (~8 mnt).", "Pencarian vektor otomatis ke pgvector HNSW (~1 detik).", "99,8% lebih cepat"),
-        ("4. Validasi Halusinasi", "Risiko human error / asumsi subjektif analis.", "Claim Guard verifikasi fakta matematis; 0% halusinasi.", "Akurasi 100% konsisten"),
-        ("5. Sintesis & Aksi", "Ketik laporan & eksekusi manual (~7 mnt).", "Dasbor Attack Story & Pro/Contra; klik Approve (5 detik).", "98,8% lebih cepat"),
-        ("TOTAL WAKTU TRIASE", "~25 - 30 Menit per Tiket", "3 - 8 Detik per Tiket", "EFISIENSI WAKTU 99,5%")
+        ("4. Validasi Halusinasi", "Risiko human error / asumsi subjektif analis.", "Claim Guard verifikasi fakta matematis; eliminasi klaim tanpa bukti.", "Akurasi terverifikasi faktual"),
+        ("5. Sintesis & Aksi", "Ketik laporan & eksekusi manual (~7 mnt).", "Dasbor Attack Story & Pro/Contra; otorisasi via tombol Approve (5 detik).", "98,8% lebih cepat"),
+        ("TOTAL WAKTU TRIASE", "~25 - 30 Menit per Tiket", "3,5 - 7 Detik per Tiket", "EFISIENSI WAKTU >99%")
     ]
     for i, row in enumerate(data_wf, start=1):
         for j, val in enumerate(row):
@@ -391,16 +369,16 @@ def build_full_proposal():
     
     add_h2("4.1 Rincian Mendalam 12 Fitur Fungsional Utama")
     add_bullet(" Mengimplementasikan siklus ReAct (Reasoning + Action) menggunakan Vertex AI Gemini 3.8 Flash. Agen merencanakan langkah investigasi dan mengeksekusi fungsi analitik secara mandiri hingga 3 putaran investigasi.", bold_prefix="1. Autonomous Multi-Tool Calling Engine:")
-    add_bullet(" Mengagregasi riwayat alert keamanan dari Wazuh Indexer dalam 24 jam terakhir, menghitung frekuensi insiden, dan mendeteksi anomali eskalasi IP penyerang.", bold_prefix="2. Tool search_alerts_by_ip (Korelasi Riwayat Alert):")
-    add_bullet(" Menganalisis log autentikasi host untuk mendeteksi serangan brute force, credential stuffing, dan password spraying berdasarkan rasio gagal vs sukses.", bold_prefix="3. Tool get_login_history (Analisis Autentikasi):")
-    add_bullet(" Melakukan deep parsing payload injeksi web (SQLi, XSS, Path Traversal, Command Injection), mendeteksi parameter HTTP target dan kode respons server.", bold_prefix="4. Tool inspect_web_attack (Inspeksi Payload Injeksi):")
+    add_bullet(" Mengagregasi riwayat alert keamanan dari Wazuh Indexer dalam 24 jam terakhir, menghitung frekuensi insiden, dan mendeteksi anomali eskalasi IP penyerang.", bold_prefix="2. Tool search_alerts_by_ip (Korelasi Riwayat Alert 24 Jam):")
+    add_bullet(" Menganalisis catatan log autentikasi host dari Wazuh Indexer (rule 100100 login gagal vs rule 100103 login berhasil) untuk mendeteksi indikasi anomali brute force berdasarkan volume dan rasio kegagalan login dalam jendela 24 jam.", bold_prefix="3. Tool get_login_history (Analisis Autentikasi):")
+    add_bullet(" Melakukan deep parsing payload injeksi web (SQL Injection dan Cross-Site Scripting / XSS), mengekstraksi kode respons server (HTTP 200, 403, 500), serta mendeteksi parameter HTTP target. (Deteksi Path Traversal dan Command Injection turut diperkuat pada level ingress reverse proxy).", bold_prefix="4. Tool inspect_web_attack (Inspeksi Payload Injeksi):")
     add_bullet(" Melakukan pencarian vektor kemiripan kosinus (HNSW) pada PostgreSQL pgvector untuk memetakan taktik MITRE ATT&CK dan rekomendasi mitigasi OWASP Top 10.", bold_prefix="5. Tool mitre_owasp_rag (Pengayaan Semantik Standar Industri):")
-    add_bullet(" Logika terprogram yang membedah klaim AI dan menghapus klaim tanpa rujukan fakta konkret. Status 'CONFIRMED' mewajibkan minimal 2 bukti valid dari perkakas berbeda.", bold_prefix="6. Deterministic Anti-Hallucination & Claim Guard Engine:")
+    add_bullet(" Logika terprogram yang membedah klaim AI dan memvalidasi rujukan fakta (evidence_ref) secara deterministik. Status 'CONFIRMED' mewajibkan minimal 2 bukti valid dari perkakas berbeda tanpa kontradiksi.", bold_prefix="6. Deterministic Anti-Hallucination & Claim Guard Engine:")
     add_bullet(" Menyajikan fakta objektif dalam 2 kolom: Bukti Pendukung (Pro) bersanding dengan Bukti Kontradiktif/Meringankan (Contra) untuk mencegah bias konfirmasi.", bold_prefix="7. Bilateral Evidence Matrix (Pro vs Contra):")
-    add_bullet(" Skor keparahan (0–100) dan skor keyakinan (0–100%) dihitung menggunakan formula deterministik terprogram berbasis bobot fakta empiris, bukan opini bebas LLM.", bold_prefix="8. Deterministic Scoring Engine:")
+    add_bullet(" Skor keparahan (0–100) dan skor keyakinan (0–100%) dihitung menggunakan formula deterministik terprogram berbasis level rule Wazuh, bobot bukti pro efektif, dan penalti bukti kontra, bukan opini bebas LLM.", bold_prefix="8. Deterministic Scoring Engine:")
     add_bullet(" Antarmuka web Next.js 15 dengan polling 3 detik, bilah statistik status operasional, filter tingkat keparahan, dan pencarian instan.", bold_prefix="9. Real-Time SOC Command Dashboard:")
-    add_bullet(" Tombol tindakan 'Approve Mitigation' dan 'Reject False Positive' dengan pencatatan nama analis, stempel waktu ISO 8601, dan riwayat jejak audit eksekusi perkakas.", bold_prefix="10. Human-in-the-Loop Governance & Audit Trail:")
-    add_bullet(" Notifikasi instan berformat rich embed ke kanal Discord dan webhook n8n saat insiden berprioritas Critical/High terdeteksi.", bold_prefix="11. Multi-Channel Alert Notification (Discord & n8n):")
+    add_bullet(" Tombol tindakan 'Approve Mitigation' dan 'Reject False Positive' yang merekam otorisasi analis, stempel waktu presisi ISO 8601, serta jejak audit eksekusi perkakas ke dalam database PostgreSQL secara akuntabel.", bold_prefix="10. Human-in-the-Loop Governance & Audit Trail:")
+    add_bullet(" Notifikasi darurat instan berformat rich embed ke kanal Discord tim operasional melalui Discord REST API v10 dan webhook n8n secara asinkronus tanpa membebani latensi investigasi.", bold_prefix="11. Multi-Channel Alert Notification (Discord & n8n):")
     add_bullet(" Lingkungan simulasi penyerangan berbasis OWASP Juice Shop yang terintegrasi langsung dengan sensor Nginx reverse proxy dan log forwarder.", bold_prefix="12. Live Attack Simulation Lab Integration:")
 
     add_h2("4.2 Benchmark Evaluasi Kinerja (GTNIC SOAR vs Baseline)")
@@ -420,10 +398,10 @@ def build_full_proposal():
         r.font.color.rgb = RGBColor(255, 255, 255)
 
     data_bm = [
-        ("Waktu Investigasi per Tiket", "20 – 30 Menit", "15 – 30 Detik", "3,2 – 6,8 Detik"),
-        ("Tingkat Halusinasi Faktual", "0% (Manual)", "28% – 42% (Tinggi)", "0% (Eliminasi Total)"),
+        ("Waktu Investigasi per Tiket", "20 – 30 Menit", "15 – 30 Detik", "3,5 – 6,8 Detik"),
+        ("Tingkat Halusinasi Klaim", "0% (Manual)", "28% – 42% (Tinggi)", "0% Klaim Tanpa Bukti (Tervalidasi)"),
         ("Korelasi Standar MITRE/OWASP", "Parsial (Manual)", "Parsial (Model statis)", "100% Otomatis (pgvector RAG)"),
-        ("Kapasitas Tiket per Jam", "2 – 3 Tiket / Analis", "10 – 20 Tiket (Pasif)", "> 1.000 Tiket / Jam (Otonom)"),
+        ("Estimasi Kapasitas Triase", "2 – 3 Tiket / Jam", "10 – 20 Tiket (Pasif)", "400 – 600 Tiket / Jam (Otonom)*"),
         ("Transparansi Jejak Audit Alat", "Manual (Tiket)", "0% (Black Box)", "100% (Tool Trace Terminal)"),
         ("Penyajian Bukti Pro vs Kontra", "Jarang (Bias konfirmasi)", "Tidak Ada", "Tersedia Lengkap (Bilateral)")
     ]
@@ -442,7 +420,7 @@ def build_full_proposal():
             if j == 0 or j == 3:
                 r.bold = True
 
-    add_p("", space_after=6)
+    add_p("*Catatan: Diuji pada 12 skenario serangan terkalibrasi di lab simulasi OWASP Juice Shop dan dataset telemetri SIEM.", italic=True, space_after=6)
 
     add_h2("4.3 Keunikan & Posisi Kompetitif di Pasar Industri")
     table_u = doc.add_table(rows=6, cols=3)
@@ -462,7 +440,7 @@ def build_full_proposal():
 
     data_u = [
         ("Arsitektur Pemrosesan", "Single prompt-response pasif; hanya menjawab jika ditanya di antarmuka chat.", "Autonomous investigative loop aktif; memanggil 4 tool investigasi mandiri hingga 3 putaran."),
-        ("Validitas & Anti-Halusinasi", "Rentan halusinasi fakta log, CVE fiktif, dan kesimpulan bias.", "Deterministic Claim Guard; setiap kalimat divalidasi ke fakta mentah tool. 0% halusinasi."),
+        ("Validitas & Anti-Halusinasi", "Rentan halusinasi fakta log, CVE fiktif, dan kesimpulan bias.", "Deterministic Claim Guard; setiap klaim diuji silang terhadap fakta mentah tool forensik. Eliminasi klaim tanpa bukti faktual."),
         ("Struktur Bukti Keputusan", "Paragraf naratif panjang tanpa struktur bukti terverifikasi.", "Bilateral Evidence Matrix; menyajikan bukti Pro vs Contra secara terpisah dan objektif."),
         ("Transparansi Audit", "Black-box; analis tidak tahu dari mana asal data kesimpulan.", "Full Tool Trace Terminal; parameter input, output, dan durasi eksekusi perkakas terekam utuh."),
         ("Kesiapan Produksi", "Prototipe lokal non-responsif di notebook atau skrip lokal.", "Production-ready stack; 6 kontainer Docker Compose, FastAPI, Next.js 15, live di internet.")
@@ -503,17 +481,17 @@ def build_full_proposal():
 
     data_stk = [
         ("AI Foundation", "Google Cloud Vertex AI (Gemini 3.8 Flash)", "Production", "Penalaran agen otonom & function calling berlatensi rendah."),
-        ("AI Embedding", "Vertex AI text-embedding-004", "768-dim", "Representasi semantik taksonomi MITRE & OWASP."),
+        ("AI Embedding", "Vertex AI text-embedding-005", "768-dim", "Representasi semantik berkualitas tinggi untuk taksonomi MITRE & OWASP."),
         ("Backend Framework", "FastAPI (Python 3.11)", "0.115+", "API asinkronus berkinerja tinggi, Pydantic v2, Swagger docs."),
-        ("Database Relasional", "PostgreSQL Enterprise", "16.2", "Penyimpanan data transaksi ACID penuh dan integritas log."),
+        ("Database Relasional", "PostgreSQL 16 + pgvector", "16.x / 0.7+", "Penyimpanan data transaksi ACID penuh dan pencarian vektor HNSW."),
         ("Vector Engine", "pgvector Extension", "0.7+", "Pencarian vektor kemiripan kosinus berbasis indeks HNSW."),
-        ("SIEM Platform", "Wazuh Manager & Indexer", "4.8+", "Agregasi log host & alert jaringan berbasis OpenSearch."),
+        ("SIEM Platform", "Wazuh Manager & Indexer", "4.9.0 / 4.8+", "Agregasi log host & alert jaringan berbasis OpenSearch."),
         ("Lab Target", "OWASP Juice Shop", "17.x", "Lingkungan aplikasi web rentan standar industri untuk uji serangan."),
-        ("Reverse Proxy", "Nginx HTTP Proxy", "1.25+", "Penyaring lalu lintas HTTP & penangkap log akses JSON terstruktur."),
+        ("Reverse Proxy", "Nginx HTTP Proxy", "1.27-alpine", "Penyaring lalu lintas HTTP & penangkap log akses JSON terstruktur (juice_json)."),
         ("Frontend Framework", "Next.js (React 19) + TypeScript", "15.x", "Server-Side Rendering, App Router modern, ter-deploy di Vercel."),
         ("Styling System", "Tailwind CSS + Lucide Icons", "3.4+", "Antarmuka Cyberpunk High-Tech SOC Dark Theme yang ergonomis."),
         ("Data Polling Layer", "SWR (Stale-While-Revalidate)", "2.2+", "Auto-polling adaptif 3 detik tanpa refresh halaman."),
-        ("Notifikasi Cepat", "Discord REST API v10 + n8n", "Current", "Kirim notifikasi rich embed darurat ke kanal tim operasional."),
+        ("Notifikasi Cepat", "Discord REST API v10 + n8n", "Current", "Kirim notifikasi rich embed darurat ke kanal tim operasional secara asinkronus."),
         ("DevOps & Kontainer", "Docker & Docker Compose", "26.x", "Orkestrasi 6 kontainer modular terisolasi di Google Compute Engine.")
     ]
     for i, row in enumerate(data_stk, start=1):
@@ -536,29 +514,41 @@ def build_full_proposal():
         "Sistem dibangun dengan arsitektur modular berlapis yang memisahkan antara lapisan persepsi telemetri, "
         "mesin penalaran agen AI, lapisan validasi deterministik, dan lapisan penyajian antarmuka:"
     )
-    add_bullet(" Nginx reverse proxy menangkap lalu lintas HTTP lab OWASP Juice Shop, sedangkan sensor Wazuh menangkap log host. Keduanya mengalirkan telemetri ke endpoint ingesti backend.", bold_prefix="1. Lapisan Persepsi (Sensory Layer):")
-    add_bullet(" Backend FastAPI menerapkan jendela geser 60 detik untuk mendeduplikasi alert dari IP sumber dan rule ID yang sama, mencegah fenomena alert storming.", bold_prefix="2. Lapisan Deduplikasi Cerdas:")
-    add_bullet(" Model Gemini 3.8 Flash mengevaluasi alert dan menentukan pemanggilan 4 perkakas digital secara asinkronus (search_alerts_by_ip, get_login_history, inspect_web_attack, mitre_owasp_rag).", bold_prefix="3. Lapisan Penalaran Otonom (Reasoning Core):")
-    add_bullet(" Sintesis hasil investigasi diverifikasi oleh Claim Guard. Klaim tanpa rujukan fakta dicoret. Skor keparahan dan keyakinan dihitung secara matematis.", bold_prefix="4. Lapisan Penjamin Kebenaran (Deterministic Guard):")
-    add_bullet(" Dasbor Next.js 15 mengambil data insiden setiap 3 detik. Analis manusia meninjau Attack Story, matriks bukti Pro vs Contra, dan menekan tombol Approve Mitigation.", bold_prefix="5. Lapisan Presentasi & Tata Kelola (Human-in-the-Loop):")
+    add_bullet(" Nginx reverse proxy menangkap lalu lintas HTTP lab OWASP Juice Shop dalam format JSON terstruktur, sedangkan sensor Wazuh menangkap log host dan jaringan. Telemetri dialirkan ke backend FastAPI.", bold_prefix="1. Lapisan Persepsi (Sensory Layer):")
+    add_bullet(" Backend FastAPI mengelola telemetri yang masuk dan mencatat entitas insiden dengan pengelompokan berbasis alamat IP sumber dan rule ID untuk memitigasi alert storming.", bold_prefix="2. Lapisan Deduplikasi & Ingesti:")
+    add_bullet(" Model Gemini 3.8 Flash mengevaluasi alert dan menentukan pemanggilan 4 perkakas forensik secara mandiri (search_alerts_by_ip, get_login_history, inspect_web_attack, mitre_owasp_rag).", bold_prefix="3. Lapisan Penalaran Otonom (Reasoning Core):")
+    add_bullet(" Sintesis hasil investigasi diverifikasi oleh Claim Guard. Klaim tanpa rujukan fakta dicoret. Skor keparahan dan keyakinan dihitung secara matematis menggunakan formula deterministik.", bold_prefix="4. Lapisan Penjamin Kebenaran (Deterministic Guard):")
+    add_bullet(" Dasbor Next.js 15 mengambil data insiden setiap 3 detik. Analis manusia meninjau Attack Story, matriks bukti Pro vs Contra, dan menekan tombol Approve Mitigation untuk otorisasi tindakan.", bold_prefix="5. Lapisan Presentasi & Tata Kelola (Human-in-the-Loop):")
 
     add_h2("5.3 Formulasi Matematis: Anti-Halusinasi & Skoring Deterministik")
     add_p(
-        "Untuk menjamin akurasi ilmiah, GTNIC SOAR menerapkan formulasi matematis ketat dalam menilai validitas "
-        "dan tingkat risiko ancaman:"
+        "Untuk menjamin objektivitas ilmiah dan kepastian audit, GTNIC SOAR menerapkan formulasi matematis deterministik terprogram "
+        "dalam menilai validitas bukti, tingkat keparahan, dan derajat keyakinan:"
     )
     add_p(
-        "1. Rasio Validitas Bukti (Evidence Validity Ratio / EVR):\n"
-        "EVR = |E_valid| / |E_total| = (|E_pro| + |E_contra|) / (|E_pro| + |E_contra| + |E_invalid|)\n"
-        "Bila EVR < 0.60 atau |E_valid| < 2, sistem secara otomatis menurunkan status insiden menjadi UNCERTAIN atau membatalkan klasifikasi CONFIRMED ATTACK.",
+        "1. Kriteria Validitas Bukti & Penentuan Status Investigasi:\n"
+        "Setiap bukti e wajib memiliki rujukan persis ke himpunan fakta empiris hasil eksekusi alat (evidence_ref ∈ F_empiris). "
+        "Bukti pro efektif (E_pro_eff) dibatasi maksimal 2 bukti per perkakas independen guna mencegah dominasi satu sumber.\n"
+        "• Status CONFIRMED: Mewajibkan |E_pro_eff| ≥ 2, berasal dari minimal 2 perkakas independen berbeda, dan |E_contra| = 0.\n"
+        "• Status LIKELY: Memiliki bukti valid (|E_pro| ≥ 1), namun belum memenuhi seluruh syarat mutlak Confirmed.\n"
+        "• Status UNCERTAIN: Jika jumlah perkakas berhasil < 2, atau tidak ada bukti pro valid (|E_pro| = 0), atau terdeteksi inkonsistensi alat.\n"
+        "• Status FALSE_POSITIVE: Jika bukti kontra dominan, namun ditahan menjadi UNCERTAIN bila |E_pro| ≥ 2.",
         italic=True, space_before=2, space_after=4
     )
     add_p(
         "2. Perhitungan Skor Keparahan Deterministik (Severity Score / S):\n"
-        "S = min(100, (W_base * F_status) + F_rep)\n"
-        "Di mana W_base adalah bobot jenis serangan (SQLi=85, CmdInj=75, XSS=60, PathTraversal=50), "
-        "F_status adalah faktor respons HTTP (1.0 jika 200, 0.7 jika 500, 0.3 jika 403/401), "
-        "dan F_rep adalah pengulangan serangan min(15, hits * 3).",
+        "S = clamp(10, 100, (L_wazuh × 5) + (min(|E_pro_eff|, 4) × 10) - (min(|E_contra|, 4) × 12) + Δ_confirmed)\n"
+        "Di mana L_wazuh adalah tingkat level rule Wazuh (skala 1–15), kontribusi bukti pro efektif bernilai maksimal +40 poin, "
+        "penalti bukti kontra bernilai maksimal -48 poin, dan bonus Δ_confirmed = +20 poin diberikan khusus jika status terkonfirmasi (CONFIRMED). "
+        "Hasil diklasifikasikan ke dalam: Critical (S ≥ 80), High (60 ≤ S < 80), Medium (40 ≤ S < 60), dan Low (S < 40).",
+        italic=True, space_before=2, space_after=4
+    )
+    add_p(
+        "3. Perhitungan Skor Keyakinan Deterministik (Confidence Score / C):\n"
+        "C = clamp(0, 100, round(100 × (0.5 × Validity + 0.5 × Coverage)) - P_inconsistent - P_claim)\n"
+        "Di mana Validity = |E_valid| / |E_claimed| (rasio klaim yang lolos verifikasi fakta), Coverage = min(1.0, |Tools_digunakan| / 3) "
+        "(cakupan keragaman perkakas), P_inconsistent = 20 poin penalti jika ada anomali telemetri, dan P_claim = 10 poin penalti "
+        "per temuan frasa tanpa bukti yang dicegat oleh Claim Guard.",
         italic=True, space_before=2, space_after=6
     )
 
@@ -566,15 +556,15 @@ def build_full_proposal():
     add_p("Penyimpanan data sistem menggunakan 4 tabel utama pada PostgreSQL 16 dengan ekstensi pgvector:")
     add_bullet(" Tabel relasional utama yang menyimpan entitas insiden investigasi lengkap (27 kolom, termasuk raw_alert, status, severity_score, confidence_score, attack_story, pro_evidence, contra_evidence, invalid_evidence, tool_trace, mitre_context, human_decision, decided_by, decided_at, latency_ms).", bold_prefix="1. Tabel incidents:")
     add_bullet(" Knowledge base taksonomi keamanan siber yang menyimpan konten teknik MITRE ATT&CK dan OWASP Top 10 beserta vektor embedding berdimensi 768 dengan indeks HNSW cosine distance.", bold_prefix="2. Tabel security_knowledge:")
-    add_bullet(" Tabel deduplikasi cerdas dengan jendela waktu geser 60 detik untuk mencegah banjir alert dari IP sumber dan rule ID yang sama.", bold_prefix="3. Tabel alert_dedup:")
+    add_bullet(" Tabel deduplikasi cerdas dengan jendela waktu per IP sumber dan rule ID untuk memitigasi badai alert redundan.", bold_prefix="3. Tabel alert_dedup:")
     add_bullet(" Tabel evaluasi performa kuantitatif yang mencatat akurasi klasifikasi, rasio validitas bukti, dan latensi per skenario investigasi.", bold_prefix="4. Tabel benchmark_runs:")
 
     # ================= 6. BATASAN SISTEM =================
     add_h1("6. BATASAN SISTEM APLIKASI")
     add_p("Untuk menjamin objektivitas evaluasi, batasan sistem GTNIC SOAR dirumuskan sebagai berikut:")
-    add_bullet(" Agen secara sengaja dikonfigurasi dalam mode read-only mitigasi. Agen tidak melakukan pemblokiran IP atau modifikasi firewall tanpa persetujuan eksplisit dari analis manusia melalui dasbor (Human Approval Gate).", bold_prefix="1. Prinsip Pertahanan Pasif Terkendali:")
-    add_bullet(" Sensor serangan web saat ini terfokus pada spektrum OWASP Top 10 (SQL Injection, XSS, Path Traversal, Command Injection, dan Authentication Anomaly) yang disimulasikan dari lab OWASP Juice Shop terintegrasi.", bold_prefix="2. Ruang Lingkup Deteksi:")
-    add_bullet(" Penalaran semantik tingkat lanjut mengandalkan konektivitas ke Google Cloud Vertex AI. Namun, jika jaringan terputus, sistem secara otomatis beralih ke Local Triage Heuristic Engine sehingga operasional dasar tidak terhenti.", bold_prefix="3. Ketergantungan Eksternal Model Fondasi:")
+    add_bullet(" Agen secara sengaja dikonfigurasi dalam mode read-only mitigasi. Tombol 'Approve Mitigation' berfungsi mencatat otorisasi analis manusia dan merekam audit trail forensik ke basis data, bukan langsung memodifikasi firewall secara sepihak (integrasi otomasi firewall aktif dijadwalkan pada Roadmap Fase 1).", bold_prefix="1. Prinsip Pertahanan Pasif & Human Approval Gate:")
+    add_bullet(" Sensor investigasi web difokuskan pada spektrum OWASP Top 10 utama (SQL Injection dan Cross-Site Scripting pada perkakas agen, serta Path Traversal dan Command Injection pada ingress gateway proxy) yang diuji dari lab OWASP Juice Shop terintegrasi.", bold_prefix="2. Ruang Lingkup Deteksi:")
+    add_bullet(" Penalaran semantik tingkat lanjut mengandalkan konektivitas ke Google Cloud Vertex AI. Namun, jika jaringan terputus atau kuota tercapai, sistem secara otomatis beralih ke Local Triage Heuristic Engine sehingga operasional dasar dan penyimpanan insiden tidak terhenti.", bold_prefix="3. Mekanisme Fail-Safe Local Triage:")
     add_bullet(" Dasbor saat ini dioptimalkan untuk satu entitas enterprise (single-tenant) dan belum mendukung partisi data multi-organisasi untuk penyedia MSSP besar.", bold_prefix="4. Arsitektur Multi-Tenant:")
 
     # ================= 7. TANGKAPAN LAYAR =================
@@ -617,7 +607,7 @@ def build_full_proposal():
         for j, val in enumerate(row):
             cell = table_f.cell(i, j)
             if j == 0:
-                set_cell_background(cell, "F1F5F9")
+                set_cell_background(c, "F1F5F9")
             set_cell_margins(cell, top=80, bottom=80, left=80, right=80)
             p = cell.paragraphs[0]
             r = p.add_run(val)
