@@ -1,18 +1,24 @@
-﻿# GTNIC AI Agent
+# GTNIC SOAR — Autonomous AI SOC Agent
 
-**Sistem pemantauan dan investigasi ancaman keamanan dengan dashboard SOC, AI Agent, dan bot Discord.**
+**Sistem pemantauan, triase otonom, dan investigasi ancaman siber enterprise berbasis Multi-Tool Calling dan Anti-Halusinasi Deterministik.**  
+*Diajukan untuk Garda Tech National Innovation Competition (GTNIC) 2026 — Kategori: AI Agent Development.*
 
-GTNIC AI Agent membantu tim melihat aktivitas mencurigakan, membaca bukti insiden, dan mencatat keputusan analis dalam satu alur. Proyek ini menggunakan OWASP Juice Shop sebagai aplikasi latihan untuk menguji deteksi serangan web.
+GTNIC SOAR mentransformasi operasi Security Operations Center (SOC) enterprise: memangkas waktu investigasi ancaman dari rata-rata ~25 menit menjadi **3–8 detik** (efisiensi 99,5%) melalui loop *tool calling* otonom, verifikasi fakta anti-halusinasi deterministik, matriks bukti *Pro vs Contra*, dan tata kelola *Human-in-the-Loop*.
 
-## Mulai dari sini
+## 🚀 Tautan Akses Cepat
 
-| Kebutuhan | Buka |
+| Kebutuhan | Tautan / Berkas |
 | --- | --- |
-| Membaca panduan penggunaan, arti fitur, dan langkah demo | [Panduan penggunaan dan pengujian](docs/PANDUAN_PENGGUNAAN.md) |
-| Melihat daftar ancaman dan detail insiden | [Dashboard GTNIC](https://gtnic-hackwitgoh.vercel.app/) |
-| Membuka aplikasi target latihan | [OWASP Juice Shop — lab tim](https://juice.flummox.cloud/) |
-| Menjalankan atau memahami backend | [Dokumentasi backend](backend/README.md) |
-| Menjalankan atau memahami frontend | [Dokumentasi frontend](frontend/README.md) |
+| 🌐 **Live SOC Dashboard (Vercel)** | [https://gtnic-hackwitgoh.vercel.app/](https://gtnic-hackwitgoh.vercel.app/) |
+| 🎯 **Live Attack Simulation Lab (Juice Shop)** | [https://juice.flummox.cloud/](https://juice.flummox.cloud/) |
+| 📄 **Dokumen Proposal Final (Markdown)** | [docs/PROPOSAL_FINAL.md](docs/PROPOSAL_FINAL.md) |
+| 📑 **Berkas Word Proposal (Siap Edit/Export PDF)** | [docs/GTNIC2026_Proposal_GTNIC_SOAR.docx](docs/GTNIC2026_Proposal_GTNIC_SOAR.docx) |
+| 🎬 **Naskah & Storyboard Video Demo (3-5 Menit)** | [docs/SCRIPT_VIDEO_DEMO.md](docs/SCRIPT_VIDEO_DEMO.md) |
+| ✍️ **Surat Pernyataan Keaslian Karya** | [docs/SURAT_PERNYATAAN_KEASLIAN.md](docs/SURAT_PERNYATAAN_KEASLIAN.md) / [.docx](docs/Surat_Pernyataan_Keaslian_Karya.docx) |
+| 📊 **Analisis Penilaian & Pemetaan Guide Book** | [docs/ANALISIS.md](docs/ANALISIS.md) |
+| 📖 **Panduan Penggunaan & Pengujian Lengkap** | [docs/PANDUAN_PENGGUNAAN.md](docs/PANDUAN_PENGGUNAAN.md) |
+| ⚙️ **Dokumentasi Teknis Backend** | [backend/README.md](backend/README.md) |
+| 💻 **Dokumentasi Frontend** | [frontend/README.md](frontend/README.md) |
 
 **Dashboard adalah tempat melihat hasil deteksi. Juice Shop adalah tempat melakukan pengujian pada lab yang disediakan tim.** Kita juga memiliki **bot Discord** untuk mengirim pemberitahuan insiden ke channel tim ketika integrasinya aktif dan terkonfigurasi.
 
