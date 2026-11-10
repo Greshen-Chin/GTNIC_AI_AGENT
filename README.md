@@ -1,35 +1,53 @@
-# GTNIC AI AGENT - Modular Monolith Repository
+﻿# GTNIC AI Agent
 
-This repository is structured as a **Modular Monolith** containing isolated domains and services.
+**Sistem pemantauan dan investigasi ancaman keamanan dengan dashboard SOC, AI Agent, dan bot Discord.**
 
-## 📂 Repository Structure
+GTNIC AI Agent membantu tim melihat aktivitas mencurigakan, membaca bukti insiden, dan mencatat keputusan analis dalam satu alur. Proyek ini menggunakan OWASP Juice Shop sebagai aplikasi latihan untuk menguji deteksi serangan web.
 
+## Mulai dari sini
+
+| Kebutuhan | Buka |
+| --- | --- |
+| Membaca panduan penggunaan, arti fitur, dan langkah demo | [Panduan penggunaan dan pengujian](docs/PANDUAN_PENGGUNAAN.md) |
+| Melihat daftar ancaman dan detail insiden | [Dashboard GTNIC](https://gtnic-hackwitgoh.vercel.app/) |
+| Membuka aplikasi target latihan | [OWASP Juice Shop — lab tim](https://juice.flummox.cloud/) |
+| Menjalankan atau memahami backend | [Dokumentasi backend](backend/README.md) |
+| Menjalankan atau memahami frontend | [Dokumentasi frontend](frontend/README.md) |
+
+**Dashboard adalah tempat melihat hasil deteksi. Juice Shop adalah tempat melakukan pengujian pada lab yang disediakan tim.** Kita juga memiliki **bot Discord** untuk mengirim pemberitahuan insiden ke channel tim ketika integrasinya aktif dan terkonfigurasi.
+
+## Gambaran alur
+
+```text
+Pengujian di OWASP Juice Shop
+             |
+             v
+Reverse proxy Nginx mencatat request
+             |
+             v
+Log forwarder mengirim catatan ke backend
+             |
+             v
+Backend memeriksa pola ancaman dan menyimpan insiden
+             |
+             +----> Dashboard: daftar insiden, bukti, dan keputusan analis
+             |
+             +----> Bot Discord: notifikasi insiden
+             |
+             +----> n8n: workflow tambahan jika dikonfigurasi
 ```
+
+Selain deteksi pola request Juice Shop, backend menyediakan jalur investigasi AI dengan tool pencarian alert Wazuh dan referensi MITRE/OWASP. Detail yang tersedia pada setiap insiden bergantung pada jalur yang membuatnya.
+
+## Struktur proyek
+
+```text
 GTNIC_AI_AGENT/
-├── frontend/                   # Cybersecurity SOC AI Agent Next.js Frontend
-│   ├── src/
-│   │   ├── app/                # App Router (pages: /, /incidents/[id])
-│   │   ├── components/ui/      # Shared Design System
-│   │   ├── features/incidents/ # Incidents domain (types, services, hooks, components)
-│   │   └── lib/
-│   ├── package.json
-│   ├── tsconfig.json
-│   ├── tailwind.config.ts
-│   └── README.md
-├── backend/                    # (Ready for your backend / agent orchestrator service)
-└── README.md
+|-- docs/          Panduan pengguna dan pengujian
+|-- frontend/      Dashboard berbasis Next.js dan React
+|-- backend/       API FastAPI, deteksi, investigasi, dan integrasi Discord
+|-- wazuh/         Berkas integrasi Wazuh
+`-- README.md      Pengantar proyek
 ```
 
-## 🚀 Running the Frontend
-
-navigate to the `frontend` folder or use npm prefix:
-
-```bash
-cd frontend
-npm run dev
-```
-
-Or from the root directory:
-```bash
-npm --prefix frontend run dev
-```
+Untuk panduan demo dari awal sampai pemeriksaan hasil, lanjutkan ke [panduan penggunaan](docs/PANDUAN_PENGGUNAAN.md).
