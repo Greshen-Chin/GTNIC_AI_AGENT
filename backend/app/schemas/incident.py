@@ -78,6 +78,8 @@ class IncidentCreate(BaseModel):
     tokens_in: Optional[int] = 0
     tokens_out: Optional[int] = 0
     latency_ms: Optional[int] = 0
+    summary: Optional[str] = None
+    recommended_action: Optional[str] = None
 
 
 class IncidentResponse(BaseModel):
@@ -110,6 +112,8 @@ class IncidentResponse(BaseModel):
     human_decision: HumanDecisionType = "pending"
     decided_by: Optional[str] = None
     decided_at: Optional[datetime] = None
+    summary: Optional[str] = None
+    recommended_action: Optional[str] = None
 
 
 class DecisionRequest(BaseModel):

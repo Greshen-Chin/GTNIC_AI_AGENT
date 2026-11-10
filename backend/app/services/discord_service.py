@@ -116,6 +116,18 @@ def build_incident_embed(incident: Dict[str, Any], incident_id: Optional[str] = 
                 "inline": False,
             })
 
+    rec_action = (
+        incident.get("recommended_action")
+        or (raw_alert.get("recommended_action") if isinstance(raw_alert, dict) else None)
+        or (alert_data.get("recommended_action") if isinstance(alert_data, dict) else None)
+    )
+    if rec_action:
+        fields.append({
+            "name": "🛡️ Automated Mitigation Playbook",
+            "value": f"```{str(rec_action)[:400]}```",
+            "inline": False,
+        })
+
     embed = {
         "title": f"{emoji} [{severity_label.upper()}] {title}",
         "description": f"A new security event has been logged and correlated by the **GTNIC SOAR Agent**.",

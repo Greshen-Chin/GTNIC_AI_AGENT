@@ -30,7 +30,9 @@ CREATE TABLE IF NOT EXISTS incidents (
     latency_ms INT,
     human_decision TEXT DEFAULT 'pending' CHECK (human_decision IN ('pending', 'approved', 'rejected')),
     decided_by TEXT,
-    decided_at TIMESTAMPTZ
+    decided_at TIMESTAMPTZ,
+    summary TEXT,
+    recommended_action TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_incidents_created_at ON incidents (created_at DESC);

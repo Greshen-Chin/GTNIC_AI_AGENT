@@ -63,9 +63,49 @@ const severities: Record<ApiIncident["severity_label"], SeverityLevel> = {
   critical: "Critical", high: "High", medium: "Medium", low: "Low",
 };
 
+function getFallbackMitigation(data: ApiIncident): string {
+  const title = (data.title || "").toLowerCase();
+  const desc = (data.raw_alert?.rule?.description || "").toLowerCase();
+  const rawData = (data.raw_alert?.data || {}) as Record<string, unknown>;
+  const threatType = String(rawData.threat_type || "").toLowerCase();
+  const srcIp = data.source_ip || "sumber";
+
+  if (title.includes("sql") || desc.includes("sql") || threatType.includes("sql")) {
+    return "Terapkan Prepared Statements (parameterized queries), blokir IP di edge gateway/firewall, dan batasi eksposur database backend.";
+  }
+  if (title.includes("xss") || desc.includes("xss") || threatType.includes("xss") || desc.includes("cross-site")) {
+    return "Aktifkan Content Security Policy (CSP), terapkan Context-aware HTML entity encoding, dan pasang flag HttpOnly pada semua session cookie.";
+  }
+  if (title.includes("command") || desc.includes("command") || threatType.includes("command")) {
+    return `Isolasi container/host terdampak, hentikan eksekusi command shell unauthorized, dan blokir IP ${srcIp} di firewall edge.`;
+  }
+  if (title.includes("traversal") || desc.includes("traversal") || threatType.includes("traversal") || desc.includes("passwd")) {
+    return "Normalkan dan sanitasi input path request sebelum akses filesystem, tolak dot-dot-slash traversal, dan batasi direktori chroot.";
+  }
+  if (title.includes("login") || title.includes("brute") || desc.includes("login") || desc.includes("brute")) {
+    return `Terapkan rate-limiting pada endpoint autentikasi, paksa tantangan MFA, dan tinjau potensi kompromi akun dari IP ${srcIp}.`;
+  }
+  if (title.includes("privilege") || title.includes("admin") || desc.includes("privilege") || desc.includes("sudo")) {
+    return `Revokasi kredensial pengguna terkait, audit konfigurasi sudoers/PAM, dan blokir akses dari IP ${srcIp}.`;
+  }
+  if (data.severity_label === "critical" || data.severity_label === "high") {
+    return `Blokir IP ${srcIp} pada edge firewall/WAF, batalkan sesi aktif, dan eskalasikan ke tim Incident Response.`;
+  }
+  return `Tinjau telemetri aktivitas dari ${srcIp}, batasi akses jaringan, dan pantau indikasi eskalasi anomali berulang.`;
+}
+
 export function toIncident(data: ApiIncident): Incident {
   const timestamp = data.created_at || data.raw_alert?.timestamp || "";
-  const rawData = data.raw_alert?.data;
+  const rawAlertObj = data.raw_alert as Record<string, unknown> | null | undefined;
+  const rawData = (data.raw_alert?.data || {}) as Record<string, unknown>;
+  const rawAction =
+    data.recommended_action ||
+    (rawAlertObj?.recommended_action as string | undefined) ||
+    (rawData.recommended_action as string | undefined);
+  const finalMitigation = (rawAction && rawAction.trim() !== "" && rawAction.toLowerCase() !== "no recommendation provided.")
+    ? rawAction
+    : getFallbackMitigation(data);
+
   const mapEvidence = (items: ApiEvidence[], type: Evidence["type"]): Evidence[] =>
     items.map((item, index) => ({
       id: `${data.id}-${type}-${index}`, type,
@@ -77,7 +117,7 @@ export function toIncident(data: ApiIncident): Incident {
 
   return {
     id: data.id, title: data.title,
-    description: data.summary || data.raw_alert?.rule?.description || data.title,
+    description: data.summary || (rawAlertObj?.summary as string | undefined) || data.raw_alert?.rule?.description || data.title,
     timestamp, sourceIp: data.source_ip || "Unknown",
     targetIp: typeof rawData?.dstip === "string" ? rawData.dstip : "Unknown",
     targetAsset: data.raw_alert?.agent?.name || "Unknown",
@@ -88,7 +128,7 @@ export function toIncident(data: ApiIncident): Incident {
         ? "False Positive" : "Active",
     mitigationActionTaken: data.human_decision === "approved" ? "Approved"
       : data.human_decision === "rejected" ? "Rejected" : null,
-    suggestedMitigation: data.recommended_action || "No recommendation provided.",
+    suggestedMitigation: finalMitigation,
     attackStory: (data.attack_story || []).map((step, index) => ({
       stepNumber: step.stepNumber ?? step.step ?? index + 1,
       title: step.title || `Investigation step ${index + 1}`,

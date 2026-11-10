@@ -55,6 +55,29 @@ def _is_internal(ip: str) -> bool:
     return any(a in n for n in _INTERNAL_NETS)
 
 
+def resolve_recommended_action(rule_desc: str, srcip: str, flags: Optional[List[str]] = None, current: str = "") -> str:
+    cleaned = (current or "").strip()
+    if cleaned and cleaned.lower() not in ("no recommendation provided.", "none", "unknown", "-"):
+        return cleaned
+
+    desc = (rule_desc or "").lower()
+    flags_list = [str(f).lower() for f in (flags or [])]
+
+    if any(k in desc for k in ["sql", "injection", "union"]) or "sql_injection" in flags_list:
+        return "Terapkan Prepared Statements (parameterized queries), blokir IP di edge gateway/firewall, dan nonaktifkan verbose server error messages."
+    if any(k in desc for k in ["xss", "script", "cross-site"]) or "cross_site_scripting" in flags_list:
+        return "Aktifkan Content Security Policy (CSP), terapkan Context-aware HTML entity encoding, dan pasang flag HttpOnly pada semua session cookie."
+    if any(k in desc for k in ["command", "cmd", "exec"]) or "command_injection" in flags_list:
+        return f"Isolasi container/host terdampak, hentikan eksekusi command shell unauthorized, dan blokir IP {srcip} di firewall edge."
+    if any(k in desc for k in ["traversal", "passwd", "file"]) or "path_traversal" in flags_list:
+        return "Validasi dan normalkan path request sebelum akses filesystem, tolak dot-dot-slash traversal, dan batasi direktori chroot."
+    if any(k in desc for k in ["login", "brute", "password", "auth"]) or "brute-force" in flags_list:
+        return f"Terapkan IP rate-limiting pada endpoint autentikasi, paksa tantangan MFA, dan tinjau potensi kompromi akun dari IP {srcip}."
+    if any(k in desc for k in ["privilege", "sudo", "admin", "root"]):
+        return f"Revokasi kredensial pengguna terkait, audit konfigurasi sudoers/PAM, dan blokir akses dari IP {srcip}."
+    return f"Tinjau telemetri aktivitas dari {srcip}, batasi akses jaringan, dan pantau indikasi eskalasi anomali berulang."
+
+
 def extract_alert_facts(alert: Dict[str, Any]) -> Tuple[List[str], str, int]:
     rule = alert.get("rule", {}) or {}
     data = alert.get("data", {}) or {}
@@ -379,6 +402,14 @@ def investigate_alert(
 
     latency_ms = int((time.perf_counter() - start_time) * 1000)
 
+    summary_text = raw_agent_output.get("summary") or f"Investigasi keamanan alert {rule_desc} dari {srcip}."
+    rec_action = resolve_recommended_action(
+        rule_desc=rule_desc,
+        srcip=srcip,
+        flags=scored.get("flags"),
+        current=raw_agent_output.get("recommended_action", "")
+    )
+
     # Format final incident record
     incident_data = {
         "dedup_key": dedup_key or f"{srcip}_{rule_id}",
@@ -403,7 +434,9 @@ def investigate_alert(
         "tokens_in": usage["in"],
         "tokens_out": usage["out"],
         "latency_ms": latency_ms,
-        "human_decision": "pending"
+        "human_decision": "pending",
+        "summary": summary_text,
+        "recommended_action": rec_action
     }
 
     # Persist in PostgreSQL database
@@ -423,8 +456,8 @@ def investigate_alert(
         "invalid_evidence": scored["invalid_evidence"],
         "tool_trace": scored["tool_trace"],
         "mitre": mitre_ctx,
-        "summary": raw_agent_output.get("summary", ""),
-        "recommended_action": raw_agent_output.get("recommended_action", ""),
+        "summary": summary_text,
+        "recommended_action": rec_action,
         "llm_model": model_label,
         "latency_ms": latency_ms
     }

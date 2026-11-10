@@ -118,12 +118,25 @@ def ingest_juice_shop_access_log(
     severity_scores = {"critical": 90, "high": 75, "medium": 55, "low": 30}
     severity_score = severity_scores.get(severity, 55)
 
+    recommendations = {
+        "command_injection": f"Isolasi container/host web, hentikan eksekusi command shell unauthorized, dan blokir IP {client_ip} di gateway edge firewall.",
+        "sql_injection": f"Terapkan Prepared Statements (parameterized queries), blokir IP {client_ip} pada edge WAF/firewall, dan batasi verbose error database.",
+        "path_traversal": f"Validasi dan normalkan path URI sebelum akses filesystem, tolak dot-dot-slash traversal, dan batasi direktori chroot dari {client_ip}.",
+        "cross_site_scripting": "Aktifkan Content Security Policy (CSP), terapkan Context-aware HTML entity encoding, dan pasang flag HttpOnly pada semua session cookie.",
+    }
+    recommended_action = recommendations.get(
+        threat_type,
+        f"Blokir IP {client_ip} pada edge gateway firewall dan tinjau log request mencurigakan."
+    )
+
     description = f"Juice Shop {threat_label} request detected in {threat_location} by proxy access-log inspection"
     title = f"Juice Shop {threat_label} attempt ({threat_location})"
     alert = {
         "timestamp": timestamp,
         "agent": {"name": "juice-shop"},
         "rule": {"id": "juice-proxy-1001", "description": description},
+        "summary": description,
+        "recommended_action": recommended_action,
         "data": {
             "srcip": client_ip,
             "url": raw_uri,
@@ -134,6 +147,8 @@ def ingest_juice_shop_access_log(
             "user_agent": str(event.get("user_agent", ""))[:256],
             "threat_type": threat_type,
             "payload": payload,
+            "summary": description,
+            "recommended_action": recommended_action,
         },
     }
     incident = {
@@ -147,6 +162,8 @@ def ingest_juice_shop_access_log(
         "severity_score": severity_score,
         "severity_label": severity,
         "confidence_score": 80,
+        "summary": description,
+        "recommended_action": recommended_action,
         "attack_story": [{
             "step": 1,
             "title": "Suspicious request observed",

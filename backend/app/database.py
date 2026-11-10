@@ -38,6 +38,11 @@ def test_postgres_connection() -> bool:
             register_vector(conn)
             with conn.cursor() as cur:
                 cur.execute("SELECT 1;")
+                try:
+                    cur.execute("ALTER TABLE incidents ADD COLUMN IF NOT EXISTS summary TEXT;")
+                    cur.execute("ALTER TABLE incidents ADD COLUMN IF NOT EXISTS recommended_action TEXT;")
+                except Exception as migration_err:
+                    logger.debug(f"Could not auto-migrate incidents columns: {migration_err}")
                 res = cur.fetchone()
                 if res and res[0] == 1:
                     _USE_FALLBACK = False
@@ -74,28 +79,63 @@ def db_fetch_incidents() -> List[Dict[str, Any]]:
         try:
             with conn:
                 with conn.cursor() as cur:
-                    cur.execute(
-                        """
-                        SELECT id, created_at, dedup_key, suppressed_count, wazuh_rule_id,
-                               title, source_ip, raw_alert, status, flags, severity_score,
-                               severity_label, confidence_score, attack_story, pro_evidence,
-                               contra_evidence, invalid_evidence, tool_trace, mitre_context,
-                               llm_model, prompt_version, tokens_in, tokens_out, latency_ms,
-                               human_decision, decided_by, decided_at
-                        FROM incidents
-                        ORDER BY created_at DESC
-                        LIMIT 100;
-                        """
-                    )
+                    try:
+                        cur.execute(
+                            """
+                            SELECT id, created_at, dedup_key, suppressed_count, wazuh_rule_id,
+                                   title, source_ip, raw_alert, status, flags, severity_score,
+                                   severity_label, confidence_score, attack_story, pro_evidence,
+                                   contra_evidence, invalid_evidence, tool_trace, mitre_context,
+                                   llm_model, prompt_version, tokens_in, tokens_out, latency_ms,
+                                   human_decision, decided_by, decided_at, summary, recommended_action
+                            FROM incidents
+                            ORDER BY created_at DESC
+                            LIMIT 100;
+                            """
+                        )
+                    except Exception:
+                        conn.rollback()
+                        cur.execute(
+                            """
+                            SELECT id, created_at, dedup_key, suppressed_count, wazuh_rule_id,
+                                   title, source_ip, raw_alert, status, flags, severity_score,
+                                   severity_label, confidence_score, attack_story, pro_evidence,
+                                   contra_evidence, invalid_evidence, tool_trace, mitre_context,
+                                   llm_model, prompt_version, tokens_in, tokens_out, latency_ms,
+                                   human_decision, decided_by, decided_at
+                            FROM incidents
+                            ORDER BY created_at DESC
+                            LIMIT 100;
+                            """
+                        )
                     rows = cur.fetchall()
                     for row in rows:
                         if isinstance(row.get("id"), uuid.UUID):
                             row["id"] = str(row["id"])
+                        raw_alert = row.get("raw_alert")
+                        if isinstance(raw_alert, str):
+                            try:
+                                raw_alert = json.loads(raw_alert)
+                                row["raw_alert"] = raw_alert
+                            except Exception:
+                                pass
+                        if isinstance(raw_alert, dict):
+                            if not row.get("summary"):
+                                row["summary"] = raw_alert.get("summary")
+                            if not row.get("recommended_action"):
+                                row["recommended_action"] = raw_alert.get("recommended_action") or (raw_alert.get("data") or {}).get("recommended_action")
                     return rows
         except Exception as e:
             logger.error(f"Error querying incidents from DB: {e}")
 
     # Fallback in-memory
+    for inc in _IN_MEMORY_INCIDENTS:
+        raw_alert = inc.get("raw_alert")
+        if isinstance(raw_alert, dict):
+            if not inc.get("summary"):
+                inc["summary"] = raw_alert.get("summary")
+            if not inc.get("recommended_action"):
+                inc["recommended_action"] = raw_alert.get("recommended_action") or (raw_alert.get("data") or {}).get("recommended_action")
     return sorted(
         _IN_MEMORY_INCIDENTS,
         key=lambda x: str(x.get("created_at", "")),
@@ -109,28 +149,63 @@ def db_fetch_incident_by_id(incident_id: str) -> Optional[Dict[str, Any]]:
         try:
             with conn:
                 with conn.cursor() as cur:
-                    cur.execute(
-                        """
-                        SELECT id, created_at, dedup_key, suppressed_count, wazuh_rule_id,
-                               title, source_ip, raw_alert, status, flags, severity_score,
-                               severity_label, confidence_score, attack_story, pro_evidence,
-                               contra_evidence, invalid_evidence, tool_trace, mitre_context,
-                               llm_model, prompt_version, tokens_in, tokens_out, latency_ms,
-                               human_decision, decided_by, decided_at
-                        FROM incidents
-                        WHERE id = %s;
-                        """,
-                        (incident_id,)
-                    )
+                    try:
+                        cur.execute(
+                            """
+                            SELECT id, created_at, dedup_key, suppressed_count, wazuh_rule_id,
+                                   title, source_ip, raw_alert, status, flags, severity_score,
+                                   severity_label, confidence_score, attack_story, pro_evidence,
+                                   contra_evidence, invalid_evidence, tool_trace, mitre_context,
+                                   llm_model, prompt_version, tokens_in, tokens_out, latency_ms,
+                                   human_decision, decided_by, decided_at, summary, recommended_action
+                            FROM incidents
+                            WHERE id = %s;
+                            """,
+                            (incident_id,)
+                        )
+                    except Exception:
+                        conn.rollback()
+                        cur.execute(
+                            """
+                            SELECT id, created_at, dedup_key, suppressed_count, wazuh_rule_id,
+                                   title, source_ip, raw_alert, status, flags, severity_score,
+                                   severity_label, confidence_score, attack_story, pro_evidence,
+                                   contra_evidence, invalid_evidence, tool_trace, mitre_context,
+                                   llm_model, prompt_version, tokens_in, tokens_out, latency_ms,
+                                   human_decision, decided_by, decided_at
+                            FROM incidents
+                            WHERE id = %s;
+                            """,
+                            (incident_id,)
+                        )
                     row = cur.fetchone()
-                    if row and isinstance(row.get("id"), uuid.UUID):
-                        row["id"] = str(row["id"])
+                    if row:
+                        if isinstance(row.get("id"), uuid.UUID):
+                            row["id"] = str(row["id"])
+                        raw_alert = row.get("raw_alert")
+                        if isinstance(raw_alert, str):
+                            try:
+                                raw_alert = json.loads(raw_alert)
+                                row["raw_alert"] = raw_alert
+                            except Exception:
+                                pass
+                        if isinstance(raw_alert, dict):
+                            if not row.get("summary"):
+                                row["summary"] = raw_alert.get("summary")
+                            if not row.get("recommended_action"):
+                                row["recommended_action"] = raw_alert.get("recommended_action") or (raw_alert.get("data") or {}).get("recommended_action")
                     return row
         except Exception as e:
             logger.error(f"Error fetching incident {incident_id}: {e}")
 
     for inc in _IN_MEMORY_INCIDENTS:
         if str(inc.get("id")) == str(incident_id):
+            raw_alert = inc.get("raw_alert")
+            if isinstance(raw_alert, dict):
+                if not inc.get("summary"):
+                    inc["summary"] = raw_alert.get("summary")
+                if not inc.get("recommended_action"):
+                    inc["recommended_action"] = raw_alert.get("recommended_action") or (raw_alert.get("data") or {}).get("recommended_action")
             return inc
     return None
 
@@ -140,60 +215,124 @@ def db_insert_incident(inc_data: Dict[str, Any]) -> str:
     now = datetime.now(timezone.utc)
     conn = get_db()
 
+    raw_alert = inc_data.get("raw_alert", {})
+    if isinstance(raw_alert, str):
+        try:
+            raw_alert = json.loads(raw_alert)
+        except Exception:
+            raw_alert = {}
+    if isinstance(raw_alert, dict):
+        if inc_data.get("summary") and "summary" not in raw_alert:
+            raw_alert["summary"] = inc_data["summary"]
+        if inc_data.get("recommended_action") and "recommended_action" not in raw_alert:
+            raw_alert["recommended_action"] = inc_data["recommended_action"]
+
+    summary_val = inc_data.get("summary") or (raw_alert.get("summary") if isinstance(raw_alert, dict) else None)
+    rec_val = inc_data.get("recommended_action") or (raw_alert.get("recommended_action") if isinstance(raw_alert, dict) else None)
+
     if conn:
         try:
             with conn:
                 with conn.cursor() as cur:
-                    cur.execute(
-                        """
-                        INSERT INTO incidents (
-                            id, created_at, dedup_key, suppressed_count, wazuh_rule_id,
-                            title, source_ip, raw_alert, status, flags, severity_score,
-                            severity_label, confidence_score, attack_story, pro_evidence,
-                            contra_evidence, invalid_evidence, tool_trace, mitre_context,
-                            llm_model, prompt_version, tokens_in, tokens_out, latency_ms,
-                            human_decision, decided_by, decided_at
-                        ) VALUES (
-                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
-                        ) RETURNING id;
-                        """,
-                        (
-                            inc_id,
-                            now,
-                            inc_data.get("dedup_key"),
-                            inc_data.get("suppressed_count", 0),
-                            inc_data.get("wazuh_rule_id"),
-                            inc_data.get("title", "Wazuh Alert Incident"),
-                            inc_data.get("source_ip"),
-                            json.dumps(inc_data.get("raw_alert", {})),
-                            inc_data.get("status", "uncertain"),
-                            json.dumps(inc_data.get("flags", [])),
-                            inc_data.get("severity_score", 50),
-                            inc_data.get("severity_label", "medium"),
-                            inc_data.get("confidence_score", 50),
-                            json.dumps(inc_data.get("attack_story", [])),
-                            json.dumps(inc_data.get("pro_evidence", [])),
-                            json.dumps(inc_data.get("contra_evidence", [])),
-                            json.dumps(inc_data.get("invalid_evidence", [])),
-                            json.dumps(inc_data.get("tool_trace", [])),
-                            json.dumps(inc_data.get("mitre_context", [])),
-                            inc_data.get("llm_model", settings.LLM_MODEL),
-                            inc_data.get("prompt_version", "v2.0"),
-                            inc_data.get("tokens_in", 0),
-                            inc_data.get("tokens_out", 0),
-                            inc_data.get("latency_ms", 0),
-                            inc_data.get("human_decision", "pending"),
-                            inc_data.get("decided_by"),
-                            inc_data.get("decided_at")
+                    try:
+                        cur.execute(
+                            """
+                            INSERT INTO incidents (
+                                id, created_at, dedup_key, suppressed_count, wazuh_rule_id,
+                                title, source_ip, raw_alert, status, flags, severity_score,
+                                severity_label, confidence_score, attack_story, pro_evidence,
+                                contra_evidence, invalid_evidence, tool_trace, mitre_context,
+                                llm_model, prompt_version, tokens_in, tokens_out, latency_ms,
+                                human_decision, decided_by, decided_at, summary, recommended_action
+                            ) VALUES (
+                                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                            ) RETURNING id;
+                            """,
+                            (
+                                inc_id,
+                                now,
+                                inc_data.get("dedup_key"),
+                                inc_data.get("suppressed_count", 0),
+                                inc_data.get("wazuh_rule_id"),
+                                inc_data.get("title", "Wazuh Alert Incident"),
+                                inc_data.get("source_ip"),
+                                json.dumps(raw_alert),
+                                inc_data.get("status", "uncertain"),
+                                json.dumps(inc_data.get("flags", [])),
+                                inc_data.get("severity_score", 50),
+                                inc_data.get("severity_label", "medium"),
+                                inc_data.get("confidence_score", 50),
+                                json.dumps(inc_data.get("attack_story", [])),
+                                json.dumps(inc_data.get("pro_evidence", [])),
+                                json.dumps(inc_data.get("contra_evidence", [])),
+                                json.dumps(inc_data.get("invalid_evidence", [])),
+                                json.dumps(inc_data.get("tool_trace", [])),
+                                json.dumps(inc_data.get("mitre_context", [])),
+                                inc_data.get("llm_model", settings.LLM_MODEL),
+                                inc_data.get("prompt_version", "v2.0"),
+                                inc_data.get("tokens_in", 0),
+                                inc_data.get("tokens_out", 0),
+                                inc_data.get("latency_ms", 0),
+                                inc_data.get("human_decision", "pending"),
+                                inc_data.get("decided_by"),
+                                inc_data.get("decided_at"),
+                                summary_val,
+                                rec_val
+                            )
                         )
-                    )
+                    except Exception:
+                        conn.rollback()
+                        cur.execute(
+                            """
+                            INSERT INTO incidents (
+                                id, created_at, dedup_key, suppressed_count, wazuh_rule_id,
+                                title, source_ip, raw_alert, status, flags, severity_score,
+                                severity_label, confidence_score, attack_story, pro_evidence,
+                                contra_evidence, invalid_evidence, tool_trace, mitre_context,
+                                llm_model, prompt_version, tokens_in, tokens_out, latency_ms,
+                                human_decision, decided_by, decided_at
+                            ) VALUES (
+                                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                            ) RETURNING id;
+                            """,
+                            (
+                                inc_id,
+                                now,
+                                inc_data.get("dedup_key"),
+                                inc_data.get("suppressed_count", 0),
+                                inc_data.get("wazuh_rule_id"),
+                                inc_data.get("title", "Wazuh Alert Incident"),
+                                inc_data.get("source_ip"),
+                                json.dumps(raw_alert),
+                                inc_data.get("status", "uncertain"),
+                                json.dumps(inc_data.get("flags", [])),
+                                inc_data.get("severity_score", 50),
+                                inc_data.get("severity_label", "medium"),
+                                inc_data.get("confidence_score", 50),
+                                json.dumps(inc_data.get("attack_story", [])),
+                                json.dumps(inc_data.get("pro_evidence", [])),
+                                json.dumps(inc_data.get("contra_evidence", [])),
+                                json.dumps(inc_data.get("invalid_evidence", [])),
+                                json.dumps(inc_data.get("tool_trace", [])),
+                                json.dumps(inc_data.get("mitre_context", [])),
+                                inc_data.get("llm_model", settings.LLM_MODEL),
+                                inc_data.get("prompt_version", "v2.0"),
+                                inc_data.get("tokens_in", 0),
+                                inc_data.get("tokens_out", 0),
+                                inc_data.get("latency_ms", 0),
+                                inc_data.get("human_decision", "pending"),
+                                inc_data.get("decided_by"),
+                                inc_data.get("decided_at")
+                            )
+                        )
                     created_id = cur.fetchone()["id"]
                     conn.commit()
                     # Dispatch real-time alert to Discord
                     try:
                         from app.services.discord_service import dispatch_discord_alert_async
-                        dispatch_discord_alert_async(inc_data, incident_id=str(created_id))
+                        dispatch_discord_alert_async({**inc_data, "summary": summary_val, "recommended_action": rec_val}, incident_id=str(created_id))
                     except Exception as discord_err:
                         logger.exception("Could not trigger Discord notification: %s", discord_err)
                     return str(created_id)
@@ -205,7 +344,10 @@ def db_insert_incident(inc_data: Dict[str, Any]) -> str:
         **inc_data,
         "id": inc_id,
         "created_at": now.isoformat(),
-        "human_decision": inc_data.get("human_decision", "pending")
+        "human_decision": inc_data.get("human_decision", "pending"),
+        "summary": summary_val,
+        "recommended_action": rec_val,
+        "raw_alert": raw_alert
     }
     _IN_MEMORY_INCIDENTS.insert(0, inc_record)
     # Dispatch real-time alert to Discord for in-memory record as well
