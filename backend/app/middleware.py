@@ -67,11 +67,20 @@ class AttackWebhookMiddleware:
             logger.warning("SQL injection-like request detected, but WEBHOOK_URL is not configured")
             return
 
+        headers = dict(scope.get("headers", []))
+        cf_ip = headers.get(b"cf-connecting-ip", b"").decode("utf-8", "replace").strip()
+        xff = headers.get(b"x-forwarded-for", b"").decode("utf-8", "replace").strip()
         client = scope.get("client")
+        client_ip = (
+            cf_ip
+            or (xff.split(",")[0].strip() if xff else "")
+            or (client[0] if client else "unknown")
+        )
+
         event = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "threat_type": "sql_injection",
-            "ip": client[0] if client else "unknown",
+            "ip": client_ip,
             "payload": payload,
         }
         try:
