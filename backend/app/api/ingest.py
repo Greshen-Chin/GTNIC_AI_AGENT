@@ -95,7 +95,22 @@ def ingest_juice_shop_access_log(
     if not threat_type:
         return {"accepted": True, "detected": False}
 
-    client_ip = str(event.get("remote_addr") or "unknown")[:128]
+    # Extract true client IP: prioritize Cloudflare CF-Connecting-IP, then X-Forwarded-For, then remote_addr
+    cf_ip = str(event.get("cf_connecting_ip") or "").strip()
+    xff = str(event.get("x_forwarded_for") or "").strip()
+    remote_ip = str(event.get("remote_addr") or "").strip()
+
+    if cf_ip and cf_ip not in ("-", "null", "None", ""):
+        client_ip = cf_ip
+    elif xff and xff not in ("-", "null", "None", ""):
+        # X-Forwarded-For can be comma-separated: "client, proxy1, proxy2"
+        client_ip = xff.split(",")[0].strip()
+    elif remote_ip and remote_ip not in ("-", "null", "None", ""):
+        client_ip = remote_ip
+    else:
+        client_ip = "unknown"
+
+    client_ip = client_ip[:128]
     timestamp = str(event.get("time") or datetime.now(timezone.utc).isoformat())
     payload = matched_payload[:2_000]
     method = str(event.get("method", ""))[:16]
