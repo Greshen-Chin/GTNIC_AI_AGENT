@@ -53,6 +53,7 @@ export interface ApiIncident {
   owasp_context?: OwaspContext[];
   summary?: string;
   recommended_action?: string;
+  llm_model?: string;
 }
 
 const verdicts: Record<ApiIncident["status"], AIVerdict> = {
@@ -151,5 +152,6 @@ export function toIncident(data: ApiIncident): Incident {
       description: item.description || "", mitigationAdvice: item.mitigationAdvice || "",
     })),
     owaspContext: data.owasp_context || [],
+    llmModel: data.llm_model || "autonomous-agent",
   };
 }

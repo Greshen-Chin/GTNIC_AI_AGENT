@@ -21,6 +21,9 @@ def get_vertex_client() -> Optional[genai.Client]:
     (Service Account with roles/aiplatform.user) to route requests and bill directly
     to Google Cloud Vertex AI.
     """
+    if getattr(settings, "ALLOW_SIMULATION", False):
+        return None
+
     global _CLIENT, _CLIENT_INITIALIZED
     if _CLIENT_INITIALIZED:
         return _CLIENT
@@ -69,6 +72,9 @@ def generate_embedding(text: str) -> List[float]:
     All calls are charged to the Google Cloud Project's Vertex AI quota.
     Falls back to deterministic normalized vector if offline/no GCP connection.
     """
+    if getattr(settings, "ALLOW_SIMULATION", False):
+        return _generate_fallback_embedding(text, dim=settings.EMBED_DIM)
+
     client = get_vertex_client()
     if client:
         try:

@@ -14,6 +14,8 @@ import {
   Info,
   Check,
   Copy,
+  Sparkles,
+  Cpu,
 } from "lucide-react";
 import { Incident } from "../types";
 import { SeverityBadge, VerdictBadge, StatusBadge } from "@/components/ui/Badge";
@@ -119,6 +121,19 @@ export const IncidentHeader: React.FC<IncidentHeaderProps> = ({
               verdict={incident.aiVerdict}
               confidence={incident.aiConfidence}
             />
+            {incident.llmModel && (
+              incident.llmModel.toLowerCase().includes("gemini") ? (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[11px] font-mono font-medium bg-purple-950/60 border border-purple-500/40 text-purple-300">
+                  <Sparkles className="w-3 h-3 text-purple-400" />
+                  <span>Agent: {incident.llmModel}</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[11px] font-mono font-medium bg-amber-950/60 border border-amber-500/40 text-amber-300">
+                  <Cpu className="w-3 h-3 text-amber-400" />
+                  <span>Engine: {incident.llmModel}</span>
+                </span>
+              )
+            )}
           </div>
           <h1 className="text-lg sm:text-xl font-bold tracking-tight text-white font-sans">
             {incident.title}

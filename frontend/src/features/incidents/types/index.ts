@@ -79,6 +79,7 @@ export interface Incident {
   status: IncidentStatus;
   suggestedMitigation: string;
   mitigationActionTaken?: "Approved" | "Rejected" | null;
+  llmModel?: string;
   attackStory: AttackStoryStep[];
   evidence: {
     pro: Evidence[];

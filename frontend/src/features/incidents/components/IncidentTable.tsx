@@ -233,6 +233,15 @@ export const IncidentTable: React.FC<IncidentTableProps> = ({
                         <Server className="w-2.5 h-2.5 text-slate-400" />
                         {incident.targetAsset}
                       </span>
+                      {incident.llmModel && incident.llmModel.toLowerCase().includes("gemini") ? (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-mono bg-purple-950/60 border border-purple-500/30 text-purple-300">
+                          Gemini
+                        </span>
+                      ) : incident.llmModel === "local-triage" ? (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-mono bg-amber-950/60 border border-amber-500/30 text-amber-300">
+                          Local
+                        </span>
+                      ) : null}
                     </div>
                     <div className="font-medium text-slate-100 group-hover:text-emerald-300 transition-colors line-clamp-1 text-xs">
                       {incident.title}
