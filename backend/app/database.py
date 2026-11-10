@@ -210,6 +210,25 @@ def db_fetch_incident_by_id(incident_id: str) -> Optional[Dict[str, Any]]:
     return None
 
 
+def db_find_incident_by_dedup_key(dedup_key: str) -> Optional[str]:
+    """Find a previously processed event, including after an API restart."""
+    conn = get_db()
+    if conn:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT id FROM incidents WHERE dedup_key = %s LIMIT 1;",
+                    (dedup_key,),
+                )
+                row = cur.fetchone()
+                return str(row["id"]) if row else None
+    return next(
+        (str(inc["id"]) for inc in _IN_MEMORY_INCIDENTS
+         if inc.get("dedup_key") == dedup_key),
+        None,
+    )
+
+
 def db_insert_incident(inc_data: Dict[str, Any]) -> str:
     inc_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc)

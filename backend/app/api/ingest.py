@@ -1,8 +1,11 @@
 """Authenticated ingestion endpoint for Juice Shop reverse-proxy access logs."""
 
 import logging
+import hashlib
+import json
 import re
 import time
+from threading import Lock
 from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Any, Dict, List
@@ -13,11 +16,14 @@ from fastapi import APIRouter, Depends
 
 from app.auth import verify_internal_token
 from app.config import settings
-from app.database import db_insert_incident
+from app.database import db_find_incident_by_dedup_key, db_insert_incident
 from app.services.agent_service import investigate_alert
 
 logger = logging.getLogger("soar-api.ingest")
 router = APIRouter(prefix="/integrations", tags=["Security Event Ingestion"])
+# The deployed API uses one worker. Serialize ingestion so concurrent retries
+# cannot both pass the duplicate check before the first incident is stored.
+_INGEST_LOCK = Lock()
 
 # Sliding window for brute force login detection: {client_ip: [timestamp1, timestamp2, ...]}
 _FAILED_LOGINS: Dict[str, List[float]] = defaultdict(list)
@@ -53,6 +59,11 @@ def ingest_juice_shop_access_log(
     event: Dict[str, Any],
     _: str = Depends(verify_internal_token),
 ):
+    with _INGEST_LOCK:
+        return _ingest_juice_shop_access_log(event)
+
+
+def _ingest_juice_shop_access_log(event: Dict[str, Any]):
     """
     Ingest suspicious Juice Shop reverse-proxy access logs and trigger
     autonomous investigation via the AI Agent pipeline (Gemini / Local Triage).
@@ -149,6 +160,25 @@ def ingest_juice_shop_access_log(
 
     if not threat_type:
         return {"accepted": True, "detected": False}
+
+    # Identify a log entry, not an IP/rule pair: fresh attacks from the same IP
+    # must still be investigated. Older forwarders supply a timestamp instead.
+    dedup_key = None
+    if event.get("event_id") or event.get("time"):
+        event_identity = event.get("event_id") or json.dumps(event, sort_keys=True)
+        dedup_key = "juice-event:" + hashlib.sha256(
+            str(event_identity).encode("utf-8")
+        ).hexdigest()
+        existing_id = db_find_incident_by_dedup_key(dedup_key)
+        if existing_id:
+            return {
+                "accepted": True,
+                "detected": True,
+                "duplicate": True,
+                "incident_id": existing_id,
+                "threat_type": threat_type,
+                "threat_location": threat_location,
+            }
 
     timestamp = str(event.get("time") or datetime.now(timezone.utc).isoformat())
     payload = matched_payload[:2_000]
@@ -266,7 +296,7 @@ def ingest_juice_shop_access_log(
     # Runs Gemini tool calling or deterministic local triage fallback to produce real tool_trace
     incident_id = None
     investigation_result: Dict[str, Any] = {}
-    dedup_key = f"juice_{client_ip}_{rule_id}"
+    dedup_key = dedup_key or f"juice_{client_ip}_{rule_id}"
 
     try:
         investigation_result = investigate_alert(alert=alert, dedup_key=dedup_key)

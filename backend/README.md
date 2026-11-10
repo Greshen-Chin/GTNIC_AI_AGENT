@@ -1,5 +1,45 @@
 # GTNIC SOAR-API 
 
+## Perbaikan investigasi berulang pada log Juice Shop
+
+Penyebab yang dikonfirmasi dari API dashboard: insiden berulang memiliki waktu
+log yang sama (`2026-11-10T14:31:48+00:00`), URL `/etc/passwd`, dan status HTTP
+`304`, sedangkan investigasi membutuhkan sekitar 19–322 detik. Forwarder sebelumnya
+memakai timeout 5 detik, sehingga mengirim ulang satu log sebelum investigasinya
+selesai. Nilai `dedup_key` sebelumnya disimpan tanpa pemeriksaan duplikat.
+
+Perbaikan KISS:
+
+- Forwarder menunggu respons investigasi tanpa batas waktu baca 5 detik; timeout
+  koneksi dan pengiriman tetap 5 detik.
+- Setiap baris log mendapatkan `event_id` stabil dari identitas file, posisi baca,
+  dan isi baris. Retry dan restart forwarder mempertahankan identitas tersebut.
+- Backend memeriksa identitas event di database sebelum menjalankan AI. Log yang
+  sudah diproses mengembalikan ID insiden yang sama tanpa investigasi atau
+  notifikasi ulang. Forwarder lama yang belum mengirim `event_id` menggunakan
+  fingerprint isi event bertimestamp sebagai kompatibilitas sementara.
+- Pemrosesan ingest diserialkan pada API satu worker agar retry bersamaan tidak
+  memulai dua investigasi. Request baru dari IP yang sama tetap diperiksa.
+
+Jalankan tes regresi dari direktori `backend`:
+
+```powershell
+python -m pytest tests/test_ingest_retries.py -q
+```
+
+Untuk menerapkan kode baru di server, build ulang **kedua** layanan dari direktori
+`backend` pada checkout yang sudah berisi perbaikan:
+
+```bash
+docker compose -f docker-compose.soar.yml up -d --build soar-api juice-log-forwarder
+```
+
+Perbaikan ini tidak menghapus catatan insiden lama. Dengan PostgreSQL tersedia,
+pemeriksaan duplikat tetap bekerja setelah restart API. Fallback in-memory hanya
+menyimpan identitas selama proses hidup. Mekanisme lock mengikuti konfigurasi
+deployment saat ini (`uvicorn --workers 1`); deployment multiworker membutuhkan
+koordinasi deduplikasi di database sebelum investigasi.
+
 Layanan **soar-api** berbasis FastAPI yang bertugas sebagai backend tool calling investigasi keamanan, integrasi RAG MITRE & OWASP via **Google Cloud Vertex AI**, serta penyaji data REST API untuk Dashboard SOC.
 
 ---

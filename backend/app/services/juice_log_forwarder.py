@@ -1,6 +1,7 @@
 """Forward Nginx JSON access logs to soar-api without mounting the Docker socket."""
 
 import json
+import hashlib
 import logging
 import os
 import time
@@ -56,11 +57,18 @@ def run():
                     next_offset = log_file.tell()
                     try:
                         event = json.loads(line)
+                        # Keep the same identity when a delivery is retried or the
+                        # forwarder restarts before saving its cursor.
+                        event["event_id"] = hashlib.sha256(
+                            f"{inode}:{cursor['offset']}:{line}".encode("utf-8")
+                        ).hexdigest()
                         response = httpx.post(
                             f"{API_URL}/integrations/juice-shop/access-log",
                             json=event,
                             headers=headers,
-                            timeout=5.0,
+                            # Ingestion runs AI synchronously. A short read timeout
+                            # replays this log while the first investigation runs.
+                            timeout=httpx.Timeout(5.0, read=None),
                         )
                         response.raise_for_status()
                     except (json.JSONDecodeError, httpx.HTTPError, ValueError):
