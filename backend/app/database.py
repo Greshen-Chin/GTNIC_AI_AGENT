@@ -229,6 +229,53 @@ def db_find_incident_by_dedup_key(dedup_key: str) -> Optional[str]:
     )
 
 
+def db_next_pending_investigation() -> Optional[Dict[str, Any]]:
+    """The incident table doubles as a durable, oldest-first work queue."""
+    conn = get_db()
+    if conn:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT id, raw_alert, dedup_key FROM incidents "
+                    "WHERE llm_model = 'investigation-pending' ORDER BY created_at LIMIT 1;"
+                )
+                return cur.fetchone()
+    return next((inc for inc in reversed(_IN_MEMORY_INCIDENTS)
+                 if inc.get("llm_model") == "investigation-pending"), None)
+
+
+def db_update_incident_analysis(incident_id: str, analysis: Dict[str, Any]) -> None:
+    """Enrich the same incident without overwriting analyst decisions or its time."""
+    json_fields = {"raw_alert", "flags", "attack_story", "pro_evidence", "contra_evidence",
+                   "invalid_evidence", "tool_trace", "mitre_context"}
+    allowed = json_fields | {"title", "status", "severity_score", "severity_label",
+                             "confidence_score", "llm_model", "prompt_version",
+                             "tokens_in", "tokens_out", "latency_ms", "summary", "recommended_action"}
+    updates = {key: value for key, value in analysis.items() if key in allowed}
+    if not updates:
+        return
+    conn = get_db()
+    if conn:
+        with conn:
+            with conn.cursor() as cur:
+                assignments = ", ".join(
+                    f"{key} = %s::jsonb" if key in json_fields else f"{key} = %s"
+                    for key in updates
+                )
+                values = [json.dumps(value) if key in json_fields else value
+                          for key, value in updates.items()]
+                cur.execute(f"UPDATE incidents SET {assignments} WHERE id = %s;",
+                            (*values, incident_id))
+                if cur.rowcount != 1:
+                    raise LookupError(f"Incident {incident_id} no longer exists")
+        return
+    for inc in _IN_MEMORY_INCIDENTS:
+        if str(inc["id"]) == str(incident_id):
+            inc.update(updates)
+            return
+    raise LookupError(f"Incident {incident_id} no longer exists")
+
+
 def db_insert_incident(inc_data: Dict[str, Any]) -> str:
     inc_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc)

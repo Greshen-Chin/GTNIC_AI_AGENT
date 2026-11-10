@@ -2,6 +2,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from app.main import app
 from app.config import settings
+from app.services.investigation_worker import process_next_investigation
 
 INTERNAL_HEADERS = {"X-Internal-Token": settings.INTERNAL_TOKEN}
 DASHBOARD_HEADERS = {"X-Dashboard-API-Key": settings.DASHBOARD_API_KEY}
@@ -54,6 +55,10 @@ async def test_juice_shop_attack_triggers_investigation_and_populates_traces(ac:
     assert "incident_id" in data
     incident_id = data["incident_id"]
     assert incident_id, "Expected valid incident_id returned from investigation"
+
+    assert data["llm_model"] == "investigation-pending"
+    while process_next_investigation():
+        pass
 
     # 2. Fetch the incident from SOC Dashboard API
     detail_resp = await ac.get(f"/api/incidents/{incident_id}", headers=DASHBOARD_HEADERS)

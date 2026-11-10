@@ -34,6 +34,14 @@ class AttackWebhookMiddleware:
             await self.app(scope, receive, send)
             return
 
+        # These routes carry recorded evidence, not traffic to the target app.
+        # Inspecting their JSON would report the SQLi payload a second time and
+        # could feed investigation/tool calls back into the n8n alert workflow.
+        path = scope.get("path", "")
+        if path.startswith(("/internal/", "/integrations/")):
+            await self.app(scope, receive, send)
+            return
+
         # Buffer and replay the ASGI body so inspection does not consume it for FastAPI.
         messages = []
         body = bytearray()

@@ -20,7 +20,7 @@ from app.services.wazuh_service import (
     alert_time
 )
 from app.services.rag_service import search_mitre_owasp_rag
-from app.database import db_insert_incident
+from app.database import db_insert_incident, db_update_incident_analysis
 
 logger = logging.getLogger("soar-api.agent")
 
@@ -354,7 +354,8 @@ def apply_claim_guard(raw: Dict[str, Any], facts: set, status: str):
 
 def investigate_alert(
     alert: Dict[str, Any],
-    dedup_key: str = None
+    dedup_key: str = None,
+    incident_id: str = None,
 ) -> Dict[str, Any]:
     """
     Executes the full AI Agent toolcalling loop via Google Cloud Vertex AI (Gemini),
@@ -440,7 +441,10 @@ def investigate_alert(
     }
 
     # Persist in PostgreSQL database
-    incident_id = db_insert_incident(incident_data)
+    if incident_id:
+        db_update_incident_analysis(incident_id, incident_data)
+    else:
+        incident_id = db_insert_incident(incident_data)
     incident_data["id"] = incident_id
 
     return {

@@ -67,3 +67,14 @@ jobs:
 
           echo "==> Status kontainer yang berjalan:"
           docker compose -f docker-compose.soar.yml ps
+
+      - name: Verify background ingestion is running
+        run: |
+          for attempt in $(seq 1 30); do
+            if docker exec soar-api python -c "import json, urllib.request; h=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)); assert h.get('ingestion_mode') == 'persist-first-background-investigation', h; assert h.get('investigation_worker_alive') is True, h; print('Background ingestion ready')"; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "ERROR: Backend baru atau worker investigasi belum siap."
+          exit 1

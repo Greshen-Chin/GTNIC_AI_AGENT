@@ -11,6 +11,7 @@ from app.services.vertex_service import get_vertex_client
 from app.api.internal_tools import router as internal_router
 from app.api.dashboard import router as dashboard_router
 from app.api.ingest import router as ingest_router
+from app.services.investigation_worker import start_investigation_worker
 
 # Configure structured logging
 logging.basicConfig(
@@ -39,7 +40,13 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("Vertex AI ready (waiting for GCP credentials in production environment)")
 
-    yield
+    stop, worker = start_investigation_worker()
+    app.state.investigation_worker = worker
+    try:
+        yield
+    finally:
+        stop.set()
+        worker.join(timeout=1)
 
     logger.info("GTNIC SOAR-API shutting down gracefully.")
 
@@ -82,7 +89,12 @@ def health_check():
         "vertex_ai_configured": bool(settings.GOOGLE_CLOUD_PROJECT or get_vertex_client()),
         "model": settings.LLM_MODEL,
         "embed_model": settings.EMBED_MODEL,
-        "embed_dim": settings.EMBED_DIM
+        "embed_dim": settings.EMBED_DIM,
+        "ingestion_mode": "persist-first-background-investigation",
+        "investigation_worker_alive": bool(
+            getattr(app.state, "investigation_worker", None)
+            and app.state.investigation_worker.is_alive()
+        ),
     }
 
 

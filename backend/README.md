@@ -10,16 +10,32 @@ selesai. Nilai `dedup_key` sebelumnya disimpan tanpa pemeriksaan duplikat.
 
 Perbaikan KISS:
 
-- Forwarder menunggu respons investigasi tanpa batas waktu baca 5 detik; timeout
-  koneksi dan pengiriman tetap 5 detik.
+- Backend langsung menyimpan insiden beserta bukti pola dan mengembalikan respons.
+  Forwarder memakai timeout 5 detik untuk penyimpanan ini, lalu membaca log berikutnya
+  tanpa menunggu AI. Pengiriman n8n juga dilakukan setelah respons dikirim.
 - Setiap baris log mendapatkan `event_id` stabil dari identitas file, posisi baca,
   dan isi baris. Retry dan restart forwarder mempertahankan identitas tersebut.
-- Backend memeriksa identitas event di database sebelum menjalankan AI. Log yang
+- Backend memeriksa identitas event di database sebelum menyimpan insiden. Log yang
   sudah diproses mengembalikan ID insiden yang sama tanpa investigasi atau
   notifikasi ulang. Forwarder lama yang belum mengirim `event_id` menggunakan
   fingerprint isi event bertimestamp sebagai kompatibilitas sementara.
 - Pemrosesan ingest diserialkan pada API satu worker agar retry bersamaan tidak
   memulai dua investigasi. Request baru dari IP yang sama tetap diperiksa.
+- Satu worker latar belakang mengambil insiden `investigation-pending` dari
+  database, mulai dari yang paling lama. AI memperbarui ID insiden yang sama tanpa
+  membuat tiket atau notifikasi Discord kedua. Waktu pencatatan dan keputusan
+  analis dipertahankan. Antrean yang belum selesai dilanjutkan setelah restart.
+- Insiden awal berstatus Under Review dengan confidence 0 sampai analisis selesai.
+  Jika investigasi gagal, bukti awal tetap tersedia dengan engine
+  `signature-fallback`; kegagalan itu tidak diulang tanpa batas.
+- Middleware tidak menafsirkan bukti pada endpoint internal/ingest sebagai serangan
+  baru. Retry log login tidak dihitung sebagai percobaan login tambahan.
+- Forwarder melewati baris JSON lengkap yang rusak, menunggu baris yang belum
+  selesai ditulis, dan kembali membaca dari awal jika file log terpotong.
+
+Dengan alur ini, waktu AI memengaruhi kapan hasil investigasi lengkap tersedia,
+tetapi tidak menahan munculnya insiden baru di dashboard. Tampilan tetap mengikuti
+polling 3 detik, ditambah waktu penerimaan log dan penyimpanan database.
 
 Jalankan tes regresi dari direktori `backend`:
 
@@ -33,6 +49,11 @@ Untuk menerapkan kode baru di server, build ulang **kedua** layanan dari direkto
 ```bash
 docker compose -f docker-compose.soar.yml up -d --build soar-api juice-log-forwarder
 ```
+
+Pastikan `GET /health` pada backend mengembalikan
+`ingestion_mode: persist-first-background-investigation` dan
+`investigation_worker_alive: true`. Workflow deployment memeriksa kedua nilai
+tersebut sebelum menyatakan deployment berhasil.
 
 Perbaikan ini tidak menghapus catatan insiden lama. Dengan PostgreSQL tersedia,
 pemeriksaan duplikat tetap bekerja setelah restart API. Fallback in-memory hanya

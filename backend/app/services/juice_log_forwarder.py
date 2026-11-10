@@ -48,15 +48,28 @@ def run():
 
             stat = LOG_PATH.stat()
             inode = getattr(stat, "st_ino", 0)
-            if cursor["inode"] != inode:
+            if cursor["inode"] != inode or stat.st_size < cursor["offset"]:
                 cursor = {"inode": inode, "offset": 0}
 
             with LOG_PATH.open("r", encoding="utf-8", errors="replace") as log_file:
                 log_file.seek(cursor["offset"])
                 while line := log_file.readline():
+                    # A writer may not have finished the last JSON line yet.
+                    if not line.endswith("\n"):
+                        break
                     next_offset = log_file.tell()
                     try:
                         event = json.loads(line)
+                        if not isinstance(event, dict):
+                            raise ValueError("access-log entry must be a JSON object")
+                    except (json.JSONDecodeError, ValueError):
+                        # One corrupt complete line must not hold up all later
+                        # attacks. Incomplete trailing lines are retried above.
+                        logger.warning("Skipping invalid access-log line at offset %s", cursor["offset"])
+                        cursor["offset"] = next_offset
+                        save_cursor(inode, next_offset)
+                        continue
+                    try:
                         # Keep the same identity when a delivery is retried or the
                         # forwarder restarts before saving its cursor.
                         event["event_id"] = hashlib.sha256(
@@ -66,12 +79,12 @@ def run():
                             f"{API_URL}/integrations/juice-shop/access-log",
                             json=event,
                             headers=headers,
-                            # Ingestion runs AI synchronously. A short read timeout
-                            # replays this log while the first investigation runs.
-                            timeout=httpx.Timeout(5.0, read=None),
+                            # Ingestion acknowledges persistence, not AI completion.
+                            # Retried deliveries retain the same event identity.
+                            timeout=httpx.Timeout(5.0),
                         )
                         response.raise_for_status()
-                    except (json.JSONDecodeError, httpx.HTTPError, ValueError):
+                    except httpx.HTTPError:
                         logger.exception("Could not forward access-log event; will retry")
                         break
                     cursor["offset"] = next_offset

@@ -8,25 +8,24 @@ import time
 from threading import Lock
 from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple, Optional
 from urllib.parse import unquote_plus
 
 import httpx
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends
 
 from app.auth import verify_internal_token
 from app.config import settings
 from app.database import db_find_incident_by_dedup_key, db_insert_incident
-from app.services.agent_service import investigate_alert
 
 logger = logging.getLogger("soar-api.ingest")
 router = APIRouter(prefix="/integrations", tags=["Security Event Ingestion"])
-# The deployed API uses one worker. Serialize ingestion so concurrent retries
-# cannot both pass the duplicate check before the first incident is stored.
+# The deployed API uses one worker. Only detection/persistence hold this lock;
+# AI runs independently and cannot block incoming log entries.
 _INGEST_LOCK = Lock()
 
-# Sliding window for brute force login detection: {client_ip: [timestamp1, timestamp2, ...]}
-_FAILED_LOGINS: Dict[str, List[float]] = defaultdict(list)
+# Track log identities as well as times: a retry is not another failed login.
+_FAILED_LOGINS: Dict[str, List[Tuple[float, Optional[str]]]] = defaultdict(list)
 BRUTE_FORCE_THRESHOLD = 5   # Alert when 5 failed login attempts occur
 BRUTE_FORCE_WINDOW = 60     # Within a 60-second window
 _LAST_BRUTE_FORCE_ALERT: Dict[str, float] = {}  # Cooldown per IP (30s) to prevent spamming
@@ -57,16 +56,16 @@ COMMAND_INJECTION_PATTERN = re.compile(
 @router.post("/juice-shop/access-log")
 def ingest_juice_shop_access_log(
     event: Dict[str, Any],
+    background_tasks: BackgroundTasks,
     _: str = Depends(verify_internal_token),
 ):
     with _INGEST_LOCK:
-        return _ingest_juice_shop_access_log(event)
+        return _ingest_juice_shop_access_log(event, background_tasks)
 
 
-def _ingest_juice_shop_access_log(event: Dict[str, Any]):
+def _ingest_juice_shop_access_log(event: Dict[str, Any], background_tasks: BackgroundTasks):
     """
-    Ingest suspicious Juice Shop reverse-proxy access logs and trigger
-    autonomous investigation via the AI Agent pipeline (Gemini / Local Triage).
+    Persist suspicious logs immediately for the dashboard and investigation worker.
     """
     raw_uri = str(event.get("uri", ""))[:8_000]
     raw_body = str(event.get("body", ""))[:16_000]
@@ -141,9 +140,15 @@ def _ingest_juice_shop_access_log(event: Dict[str, Any]):
 
     if not threat_type and is_failed_login:
         now_ts = time.time()
+        login_event_id = event.get("event_id")
+        if not login_event_id and event.get("time"):
+            login_event_id = hashlib.sha256(json.dumps(event, sort_keys=True).encode()).hexdigest()
         # Clean older entries beyond sliding window (60s)
-        _FAILED_LOGINS[client_ip] = [t for t in _FAILED_LOGINS[client_ip] if now_ts - t <= BRUTE_FORCE_WINDOW]
-        _FAILED_LOGINS[client_ip].append(now_ts)
+        _FAILED_LOGINS[client_ip] = [entry for entry in _FAILED_LOGINS[client_ip]
+                                    if now_ts - entry[0] <= BRUTE_FORCE_WINDOW]
+        if login_event_id and any(entry[1] == login_event_id for entry in _FAILED_LOGINS[client_ip]):
+            return {"accepted": True, "detected": False}
+        _FAILED_LOGINS[client_ip].append((now_ts, login_event_id))
 
         fail_count = len(_FAILED_LOGINS[client_ip])
         last_alert = _LAST_BRUTE_FORCE_ALERT.get(client_ip, 0)
@@ -292,64 +297,45 @@ def _ingest_juice_shop_access_log(event: Dict[str, Any]):
         "full_log": f'{client_ip} - - [{timestamp}] "{method} {raw_uri} HTTP/1.1" {status_code or 400} {len(payload)} "-" "{event.get("user_agent", "")}"'
     }
 
-    # Autonomous AI Investigation Pipeline
-    # Runs Gemini tool calling or deterministic local triage fallback to produce real tool_trace
-    incident_id = None
-    investigation_result: Dict[str, Any] = {}
+    # Persist immediately; the background worker enriches this same record.
     dedup_key = dedup_key or f"juice_{client_ip}_{rule_id}"
-
-    try:
-        investigation_result = investigate_alert(alert=alert, dedup_key=dedup_key)
-        incident_id = investigation_result.get("incident_id")
-        logger.info(
-            "Autonomous investigation completed for %s: Incident %s (Status: %s, Severity: %s, Engine: %s, ToolTraces: %d)",
-            client_ip,
-            incident_id,
-            investigation_result.get("status"),
-            investigation_result.get("severity_label"),
-            investigation_result.get("llm_model"),
-            len(investigation_result.get("tool_trace") or [])
-        )
-    except Exception as inv_err:
-        logger.exception("AI agent investigation encountered error; falling back to direct persistence: %s", inv_err)
-        incident = {
-            "dedup_key": dedup_key,
-            "wazuh_rule_id": rule_id,
-            "title": title,
-            "source_ip": client_ip,
-            "raw_alert": alert,
-            "status": "likely",
-            "flags": [threat_type, "juice-shop", "proxy-detected", f"loc-{threat_location.lower().replace(' ', '-')}"] ,
-            "severity_score": severity_score,
-            "severity_label": severity,
-            "confidence_score": 80,
-            "summary": description,
-            "recommended_action": recommended_action,
-            "attack_story": attack_story,
-            "pro_evidence": [{
-                "claim": description,
-                "tool": "nginx-access-log",
-                "evidence_ref": evidence_ref,
-                "source": "Juice Shop reverse proxy",
-                "confidence": "High",
-            }],
-            "contra_evidence": [],
-            "tool_trace": [],
-            "mitre_context": mitre_context,
-            "llm_model": "signature-fallback",
-            "prompt_version": "proxy-v2",
-            "human_decision": "pending",
-        }
-        incident_id = db_insert_incident(incident)
-
+    incident = {
+        "dedup_key": dedup_key,
+        "wazuh_rule_id": rule_id,
+        "title": title,
+        "source_ip": client_ip,
+        "raw_alert": alert,
+        "status": "uncertain",
+        "flags": [threat_type, "juice-shop", "proxy-detected", f"loc-{threat_location.lower().replace(' ', '-')}"] ,
+        "severity_score": severity_score,
+        "severity_label": severity,
+        "confidence_score": 0,
+        "summary": description,
+        "recommended_action": recommended_action,
+        "attack_story": attack_story,
+        "pro_evidence": [{
+            "claim": description,
+            "tool": "nginx-access-log",
+            "evidence_ref": evidence_ref,
+            "source": "Juice Shop reverse proxy",
+            "confidence": "High",
+        }],
+        "contra_evidence": [],
+        "tool_trace": [],
+        "mitre_context": mitre_context,
+        "llm_model": "investigation-pending",
+        "prompt_version": "proxy-v2",
+        "human_decision": "pending",
+    }
+    incident_id = db_insert_incident(incident)
     notification = {
         "event": "security.alert",
         "incident_id": incident_id,
         "timestamp": timestamp,
         "threat_type": threat_type,
         "threat_location": threat_location,
-        "severity": investigation_result.get("severity_label") or severity,
-        "status": investigation_result.get("status") or "likely",
+        "severity": severity,
+        "status": "uncertain",
         "source_ip": client_ip,
         "target": "juice-shop",
         "payload": payload,
@@ -357,14 +343,7 @@ def _ingest_juice_shop_access_log(event: Dict[str, Any]):
         "dashboard_url": f"/incidents/{incident_id}",
     }
     if settings.WEBHOOK_URL:
-        try:
-            response = httpx.post(settings.WEBHOOK_URL, json=notification, timeout=5.0)
-            response.raise_for_status()
-        except httpx.HTTPError:
-            # Incident persistence is independent from notification delivery.
-            logger.exception("Incident %s stored, but n8n notification failed", incident_id)
-    else:
-        logger.warning("Incident %s stored; WEBHOOK_URL is not configured", incident_id)
+        background_tasks.add_task(_send_notification, notification)
 
     return {
         "accepted": True,
@@ -372,7 +351,15 @@ def _ingest_juice_shop_access_log(event: Dict[str, Any]):
         "incident_id": incident_id,
         "threat_type": threat_type,
         "threat_location": threat_location,
-        "status": investigation_result.get("status") or "likely",
-        "severity": investigation_result.get("severity_label") or severity,
-        "llm_model": investigation_result.get("llm_model") or "signature-fallback",
+        "status": "uncertain",
+        "severity": severity,
+        "llm_model": "investigation-pending",
     }
+
+
+def _send_notification(notification):
+    try:
+        response = httpx.post(settings.WEBHOOK_URL, json=notification, timeout=5.0)
+        response.raise_for_status()
+    except httpx.HTTPError:
+        logger.exception("Incident %s stored, but n8n notification failed", notification["incident_id"])
