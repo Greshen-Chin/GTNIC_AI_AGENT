@@ -90,7 +90,7 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
                           : "bg-slate-900 text-slate-400 border-slate-700"
                       }`}
                     >
-                      {item.confidence} Conf.
+                      {item.confidence === "Observed" ? "Observed" : `${item.confidence} Conf.`}
                     </span>
                   </div>
 
@@ -183,7 +183,7 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
                           : "bg-slate-900 text-slate-400 border-slate-700"
                       }`}
                     >
-                      {item.confidence} Conf.
+                      {item.confidence === "Observed" ? "Observed" : `${item.confidence} Conf.`}
                     </span>
                   </div>
 

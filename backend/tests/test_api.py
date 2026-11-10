@@ -180,7 +180,8 @@ async def test_dashboard_api_flow(ac: AsyncClient):
     assert bench_resp.status_code == 200
     bench = bench_resp.json()
     assert "total_scenarios" in bench
-    assert bench["agent_accuracy"] > bench["baseline_accuracy"]
+    assert bench["source"] == "labelled-lab-fixtures"
+    assert bench["accuracy"] == 100 * bench["correct"] / bench["total_scenarios"]
 
 
 @pytest.mark.anyio

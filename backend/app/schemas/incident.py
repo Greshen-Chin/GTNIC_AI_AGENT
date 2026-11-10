@@ -13,7 +13,7 @@ class EvidenceItem(BaseModel):
     tool: str  # e.g. "get_login_history", "search_alerts_by_ip", "mitre_owasp_rag", or "alert"
     evidence_ref: str  # e.g. "failed_count=10", "level=5", "rule_id=100100"
     source: Optional[str] = None
-    confidence: Optional[str] = "High"
+    confidence: Optional[str] = None
 
 
 class AttackStoryStep(BaseModel):
@@ -135,7 +135,13 @@ class IncidentSummaryStats(BaseModel):
     highCount: int
     activeCount: int
     mitigatedCount: int
-    aiAverageConfidence: float
+    aiAverageConfidence: Optional[float] = None
+    analyzedCount: int = 0
+    pendingCount: int = 0
+    detectionAccuracy: Optional[float] = None
+    evaluationCases: int = 0
+    evaluationCorrect: int = 0
+    evaluationVersion: Optional[str] = None
 
 
 class AgentInvestigateRequest(BaseModel):

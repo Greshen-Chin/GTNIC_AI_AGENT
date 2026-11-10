@@ -486,7 +486,9 @@ def db_fetch_stats() -> Dict[str, Any]:
                             COUNT(*) FILTER (WHERE severity_label = 'high') as high_count,
                             COUNT(*) FILTER (WHERE human_decision = 'pending') as active_count,
                             COUNT(*) FILTER (WHERE human_decision = 'approved') as mitigated_count,
-                            COALESCE(AVG(confidence_score), 0) as avg_confidence
+                            AVG(confidence_score) FILTER (WHERE llm_model NOT IN ('investigation-pending', 'signature-fallback')) as avg_confidence,
+                            COUNT(*) FILTER (WHERE llm_model NOT IN ('investigation-pending', 'signature-fallback')) as analyzed_count,
+                            COUNT(*) FILTER (WHERE llm_model = 'investigation-pending') as pending_count
                         FROM incidents;
                         """
                     )
@@ -498,7 +500,8 @@ def db_fetch_stats() -> Dict[str, Any]:
                             "highCount": r["high_count"],
                             "activeCount": r["active_count"],
                             "mitigatedCount": r["mitigated_count"],
-                            "aiAverageConfidence": float(r["avg_confidence"]) / 100.0
+                            "aiAverageConfidence": float(r["avg_confidence"]) / 100.0 if r["avg_confidence"] is not None else None,
+                            "analyzedCount": r["analyzed_count"], "pendingCount": r["pending_count"]
                         }
         except Exception as e:
             logger.error(f"Error computing incident stats: {e}")
@@ -508,8 +511,8 @@ def db_fetch_stats() -> Dict[str, Any]:
     high = sum(1 for i in _IN_MEMORY_INCIDENTS if i.get("severity_label") == "high")
     active = sum(1 for i in _IN_MEMORY_INCIDENTS if i.get("human_decision", "pending") == "pending")
     mitigated = sum(1 for i in _IN_MEMORY_INCIDENTS if i.get("human_decision") == "approved")
-    total_conf = sum(i.get("confidence_score", 50) for i in _IN_MEMORY_INCIDENTS)
-    avg_conf = (total_conf / total / 100.0) if total > 0 else 0.0
+    analyzed = [i for i in _IN_MEMORY_INCIDENTS if i.get("llm_model") not in ("investigation-pending", "signature-fallback")]
+    avg_conf = sum(i.get("confidence_score", 0) for i in analyzed) / len(analyzed) / 100 if analyzed else None
 
     return {
         "totalIncidents": total,
@@ -517,7 +520,9 @@ def db_fetch_stats() -> Dict[str, Any]:
         "highCount": high,
         "activeCount": active,
         "mitigatedCount": mitigated,
-        "aiAverageConfidence": round(avg_conf, 2)
+        "aiAverageConfidence": avg_conf,
+        "analyzedCount": len(analyzed),
+        "pendingCount": sum(i.get("llm_model") == "investigation-pending" for i in _IN_MEMORY_INCIDENTS)
     }
 
 

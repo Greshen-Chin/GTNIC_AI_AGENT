@@ -1,5 +1,9 @@
 # GTNIC SOAR-API 
 
+## Pengukuran akurasi dan pengujian ulang
+
+Lihat [evaluasi detektor](evaluation/README.md). Metrik Lab Detection Accuracy dihitung dari skenario berlabel, bukan confidence AI. Belum ada klaim akurasi AI pada trafik produksi. Reset lab mengarsipkan insiden lama dan memulai cursor dari akhir log.
+
 ## Perbaikan investigasi berulang pada log Juice Shop
 
 Penyebab yang dikonfirmasi dari API dashboard: insiden berulang memiliki waktu
@@ -77,7 +81,7 @@ Sesuai spesifikasi teknis **Mini-SOAR GTNIC**:
    - `GET /api/incidents`: Antrean tiket insiden.
    - `GET /api/incidents/{id}`: Detail insiden lengkap (Attack Story, Bukti Pro vs Kontra, Tool Trace Audit).
    - `GET /api/stats`: Metrik ringkasan (Total, Critical, High, Active, Mitigated, Rata-rata Confidence).
-   - `GET /api/benchmark`: Evaluasi performa 12 skenario lab (Agent vs Baseline).
+   - `GET /api/benchmark`: Evaluasi terukur detektor request pada 34 skenario lab berlabel; mencakup confusion matrix dan batas cakupan.
 3. **Endpoint Keputusan Analis (`/api/incidents/{id}/decision`)**:
    - Merekam persetujuan (*Approve*) atau penolakan (*Reject/False Positive*) oleh analis manusia, mencatat `decided_by` dan `decided_at`.
 

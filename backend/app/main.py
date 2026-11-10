@@ -12,6 +12,7 @@ from app.api.internal_tools import router as internal_router
 from app.api.dashboard import router as dashboard_router
 from app.api.ingest import router as ingest_router
 from app.services.investigation_worker import start_investigation_worker
+from app.services.request_detector import DETECTOR_VERSION
 
 # Configure structured logging
 logging.basicConfig(
@@ -91,6 +92,7 @@ def health_check():
         "embed_model": settings.EMBED_MODEL,
         "embed_dim": settings.EMBED_DIM,
         "ingestion_mode": "persist-first-background-investigation",
+        "detector_version": DETECTOR_VERSION,
         "investigation_worker_alive": bool(
             getattr(app.state, "investigation_worker", None)
             and app.state.investigation_worker.is_alive()

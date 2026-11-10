@@ -47,7 +47,7 @@ export const IncidentHeader: React.FC<IncidentHeaderProps> = ({
     setActionFeedback(null);
     try {
       await onMitigate("Approved");
-      setActionFeedback("Mitigation playbook approved and enforcement signal dispatched.");
+      setActionFeedback("Mitigation approval recorded. Execution has not been verified.");
     } catch {
       setActionFeedback("Failed to record mitigation decision.");
     } finally {
@@ -119,7 +119,7 @@ export const IncidentHeader: React.FC<IncidentHeaderProps> = ({
             <SeverityBadge severity={incident.severity} />
             <VerdictBadge
               verdict={incident.aiVerdict}
-              confidence={incident.aiConfidence}
+              confidence={incident.llmModel === "investigation-pending" ? undefined : incident.aiConfidence}
             />
             {incident.llmModel && (
               incident.llmModel.toLowerCase().includes("gemini") ? (
@@ -176,7 +176,7 @@ export const IncidentHeader: React.FC<IncidentHeaderProps> = ({
                 {incident.mitigationActionTaken === "Approved" ? (
                   <>
                     <CheckCircle className="w-5 h-5 text-emerald-400" />
-                    MITIGATION ENFORCED
+                    MITIGATION APPROVED
                   </>
                 ) : (
                   <>
@@ -228,7 +228,7 @@ export const IncidentHeader: React.FC<IncidentHeaderProps> = ({
         <ShieldAlert className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
         <div className="text-xs">
           <span className="font-semibold text-emerald-300 mr-2 uppercase tracking-wide">
-            Automated Mitigation Playbook:
+            Suggested Mitigation:
           </span>
           <span className="text-slate-300 font-sans">{incident.suggestedMitigation}</span>
         </div>

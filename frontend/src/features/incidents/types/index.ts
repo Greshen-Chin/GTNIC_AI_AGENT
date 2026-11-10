@@ -10,7 +10,7 @@ export interface Evidence {
   title: string;
   description: string;
   source: string; // e.g. "Cloudflare WAF", "Suricata IDS", "Okta Logs", "CrowdStrike EDR"
-  confidence: "High" | "Medium" | "Low";
+  confidence: "High" | "Medium" | "Low" | "Observed";
   timestamp: string;
   rawArtifact?: string;
 }
@@ -96,5 +96,11 @@ export interface IncidentSummaryStats {
   highCount: number;
   activeCount: number;
   mitigatedCount: number;
-  aiAverageConfidence: number;
+  aiAverageConfidence: number | null;
+  analyzedCount?: number;
+  pendingCount?: number;
+  detectionAccuracy?: number | null;
+  evaluationCases?: number;
+  evaluationCorrect?: number;
+  evaluationVersion?: string;
 }

@@ -97,7 +97,7 @@ class SqlAttackDetail(BaseModel):
     sqli_types: List[str] = Field(default_factory=list, description="e.g. union_based, boolean_based, error_based, time_based")
     sample_payloads: List[str] = Field(default_factory=list)
     targeted_parameters: List[str] = Field(default_factory=list)
-    database_error_reflected: bool = False
+    database_error_reflected: Optional[bool] = None
 
 
 class XssAttackDetail(BaseModel):
@@ -105,8 +105,8 @@ class XssAttackDetail(BaseModel):
     xss_types: List[str] = Field(default_factory=list, description="e.g. reflected_script_tag, event_handler_attribute, javascript_pseudo_protocol")
     sample_payloads: List[str] = Field(default_factory=list)
     targeted_parameters: List[str] = Field(default_factory=list)
-    csp_enforced: bool = False
-    httponly_protected: bool = False
+    csp_enforced: Optional[bool] = None
+    httponly_protected: Optional[bool] = None
 
 
 class InspectWebAttackResponse(BaseModel):
@@ -120,7 +120,7 @@ class InspectWebAttackResponse(BaseModel):
     endpoints_targeted: List[str] = Field(default_factory=list)
     sqli: SqlAttackDetail = Field(default_factory=SqlAttackDetail)
     xss: XssAttackDetail = Field(default_factory=XssAttackDetail)
-    waf_mitigated: bool = False
+    waf_mitigated: Optional[bool] = None
     facts: List[str] = Field(
         ...,
         description="Deterministic factual strings referenced by the AI Agent (e.g. sqli_detected=true, http_500_count=3, target_param=id)"

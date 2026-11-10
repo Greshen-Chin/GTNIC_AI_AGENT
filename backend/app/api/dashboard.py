@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.auth import verify_dashboard_api_key
+from app.services.detection_evaluation import evaluate_detector
 from app.schemas.incident import (
     IncidentResponse,
     DecisionRequest,
@@ -35,7 +36,7 @@ router = APIRouter(
     "/incidents",
     response_model=List[IncidentResponse],
     summary="List all investigated incidents",
-    description="Returns the queue of investigated security incidents from PostgreSQL with verified evidence."
+    description="Returns recorded incidents, including those awaiting investigation."
 )
 def get_incidents():
     incidents = db_fetch_incidents()
@@ -104,43 +105,11 @@ def record_decision(incident_id: str, payload: DecisionRequest):
 )
 def get_stats():
     stats = db_fetch_stats()
+    evaluation = evaluate_detector()
+    stats.update(detectionAccuracy=evaluation["accuracy"] / 100, evaluationCases=evaluation["total_scenarios"], evaluationCorrect=evaluation["correct"], evaluationVersion=evaluation["dataset_version"])
     return stats
 
 
-@router.get(
-    "/benchmark",
-    response_model=BenchmarkSummary,
-    summary="Get benchmark results comparing Agent vs Baseline",
-    description="Returns benchmark performance on the 12 evaluation scenarios including accuracy, validity, and latency."
-)
+@router.get("/benchmark", summary="Measured request-detector lab evaluation")
 def get_benchmark():
-    runs = db_fetch_benchmarks()
-    total = len(runs)
-    if total == 0:
-        # Return default calibration summary based on the 12 scenarios
-        return BenchmarkSummary(
-            total_scenarios=12,
-            agent_accuracy=91.7,
-            baseline_accuracy=58.3,
-            false_positive_rate=8.3,
-            false_negative_rate=0.0,
-            avg_evidence_validity=0.96,
-            avg_agent_time_ms=1850.0,
-            runs=[]
-        )
-
-    agent_correct = sum(1 for r in runs if r.get("agent_verdict") == r.get("expected_verdict"))
-    baseline_correct = sum(1 for r in runs if r.get("baseline_verdict") == r.get("expected_verdict"))
-    avg_validity = sum(float(r.get("evidence_valid_ratio", 1.0)) for r in runs) / total
-    avg_time = sum(float(r.get("agent_time_ms", 1500)) for r in runs) / total
-
-    return BenchmarkSummary(
-        total_scenarios=total,
-        agent_accuracy=round((agent_correct / total) * 100.0, 1),
-        baseline_accuracy=round((baseline_correct / total) * 100.0, 1),
-        false_positive_rate=8.3,
-        false_negative_rate=0.0,
-        avg_evidence_validity=round(avg_validity, 2),
-        avg_agent_time_ms=round(avg_time, 1),
-        runs=[BenchmarkRunItem(**r) for r in runs]
-    )
+    return evaluate_detector()

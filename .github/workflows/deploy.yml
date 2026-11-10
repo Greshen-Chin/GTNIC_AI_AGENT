@@ -5,6 +5,11 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      reset_lab:
+        description: Archive incidents and reset the Juice Shop lab queue
+        type: boolean
+        default: false
 
 concurrency:
   group: production-deployment
@@ -68,10 +73,18 @@ jobs:
           echo "==> Status kontainer yang berjalan:"
           docker compose -f docker-compose.soar.yml ps
 
+      - name: Archive and reset lab on explicit request
+        if: inputs.reset_lab == true || contains(github.event.head_commit.message, '[reset-lab]')
+        run: |
+          cd /home/gtnic/GTNIC_AI_AGENT/backend
+          docker compose -f docker-compose.soar.yml stop juice-log-forwarder soar-api
+          trap 'docker compose -f docker-compose.soar.yml start soar-api juice-log-forwarder' EXIT
+          docker compose -f docker-compose.soar.yml run --rm --no-deps -T -e POSTGRES_HOST=postgres -e POSTGRES_PORT=5432 juice-log-forwarder python -m app.reset_lab --confirm RESET_LAB
+
       - name: Verify background ingestion is running
         run: |
           for attempt in $(seq 1 30); do
-            if docker exec soar-api python -c "import json, urllib.request; h=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)); assert h.get('ingestion_mode') == 'persist-first-background-investigation', h; assert h.get('investigation_worker_alive') is True, h; print('Background ingestion ready')"; then
+            if docker exec soar-api python -c "import json, urllib.request; h=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)); assert h.get('ingestion_mode') == 'persist-first-background-investigation', h; assert h.get('detector_version') == 'context-signatures-v1', h; assert h.get('investigation_worker_alive') is True, h; from app.services.detection_evaluation import evaluate_detector; e=evaluate_detector(); assert e['total_scenarios'] > 0 and e['correct'] == e['total_scenarios'], e; print('Background ingestion ready; labelled detector cases passed')"; then
               exit 0
             fi
             sleep 2

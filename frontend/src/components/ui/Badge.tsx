@@ -126,7 +126,7 @@ export function StatusBadge({ status }: { status: IncidentStatus }) {
   const map: Record<IncidentStatus, { variant: "active" | "mitigated" | "false_positive" | "default"; label: string }> = {
     Active: { variant: "active", label: "Active Threat" },
     Investigating: { variant: "default", label: "Investigating" },
-    Mitigated: { variant: "mitigated", label: "Mitigated" },
+    Mitigated: { variant: "mitigated", label: "Approved" },
     "False Positive": { variant: "false_positive", label: "False Positive" },
   };
 

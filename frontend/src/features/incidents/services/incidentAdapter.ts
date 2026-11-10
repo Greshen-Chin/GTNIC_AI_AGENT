@@ -96,7 +96,7 @@ function getFallbackMitigation(data: ApiIncident): string {
 }
 
 export function toIncident(data: ApiIncident): Incident {
-  const timestamp = data.created_at || data.raw_alert?.timestamp || "";
+  const timestamp = data.raw_alert?.timestamp || data.created_at || "";
   const rawAlertObj = data.raw_alert as Record<string, unknown> | null | undefined;
   const rawData = (data.raw_alert?.data || {}) as Record<string, unknown>;
   const rawAction =
@@ -112,7 +112,7 @@ export function toIncident(data: ApiIncident): Incident {
       id: `${data.id}-${type}-${index}`, type,
       title: item.claim, description: item.evidence_ref,
       source: item.source || item.tool,
-      confidence: item.confidence || "Low", timestamp,
+      confidence: item.confidence || "Observed", timestamp,
       rawArtifact: JSON.stringify(item, null, 2),
     }));
 

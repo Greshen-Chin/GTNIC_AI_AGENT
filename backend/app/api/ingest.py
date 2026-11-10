@@ -3,19 +3,18 @@
 import logging
 import hashlib
 import json
-import re
 import time
 from threading import Lock
 from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Tuple, Optional
-from urllib.parse import unquote_plus
 
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends
 
 from app.auth import verify_internal_token
 from app.config import settings
+from app.services.request_detector import detect_request
 from app.database import db_find_incident_by_dedup_key, db_insert_incident
 
 logger = logging.getLogger("soar-api.ingest")
@@ -29,29 +28,6 @@ _FAILED_LOGINS: Dict[str, List[Tuple[float, Optional[str]]]] = defaultdict(list)
 BRUTE_FORCE_THRESHOLD = 5   # Alert when 5 failed login attempts occur
 BRUTE_FORCE_WINDOW = 60     # Within a 60-second window
 _LAST_BRUTE_FORCE_ALERT: Dict[str, float] = {}  # Cooldown per IP (30s) to prevent spamming
-
-SQLI_PATTERN = re.compile(
-    r"(?:\bunion\s+(?:all\s+)?select\b|\bselect\b.+\bfrom\b|"
-    r"\bor\b\s+['\"]?\w+['\"]?\s*=\s*['\"]?\w*['\"]?|"
-    r"['\"]\s*or\s+['\"\w]+\s*=|--\s*|#|/\*|;\s*(?:drop|delete|update|insert)\b|"
-    r"\bsleep\s*\(|\bbenchmark\s*\()",
-    re.IGNORECASE,
-)
-XSS_PATTERN = re.compile(
-    r"<\s*script\b|javascript\s*:|\bonerror\s*=|\bonload\s*=|<\s*svg\b",
-    re.IGNORECASE,
-)
-PATH_TRAVERSAL_PATTERN = re.compile(
-    r"(?:\.\./|\.\.\\|/etc/(?:passwd|shadow)|boot\.ini|win\.ini)",
-    re.IGNORECASE,
-)
-COMMAND_INJECTION_PATTERN = re.compile(
-    r"(?:;\s*(?:cat|ls|id|whoami|curl|wget|bash|sh|powershell)\b|"
-    r"\|\s*(?:cat|ls|id|whoami|curl|wget|bash|sh)\b|"
-    r"`[^`]+`|\$\([^)]+\))",
-    re.IGNORECASE,
-)
-
 
 @router.post("/juice-shop/access-log")
 def ingest_juice_shop_access_log(
@@ -69,8 +45,6 @@ def _ingest_juice_shop_access_log(event: Dict[str, Any], background_tasks: Backg
     """
     raw_uri = str(event.get("uri", ""))[:8_000]
     raw_body = str(event.get("body", ""))[:16_000]
-    decoded_uri = unquote_plus(raw_uri)
-    decoded_body = unquote_plus(raw_body)
 
     # Extract true client IP: prioritize Cloudflare CF-Connecting-IP, then X-Forwarded-For, then remote_addr
     cf_ip = str(event.get("cf_connecting_ip") or "").strip()
@@ -91,55 +65,21 @@ def _ingest_juice_shop_access_log(event: Dict[str, Any], background_tasks: Backg
     method = str(event.get("method", ""))[:16].upper()
     status_code = str(event.get("status") or "")
 
-    # Detect attack pattern in URI first, then in request body
-    threat_type = None
-    threat_location = None
-    matched_payload = ""
+    detection = detect_request(event)
+    threat_type = detection["threat_type"] if detection else None
+    threat_location = detection["threat_location"] if detection else None
+    matched_payload = detection["payload"] if detection else ""
     fail_count = 0
-
-    # Priority 1: Command Injection
-    if COMMAND_INJECTION_PATTERN.search(decoded_uri):
-        threat_type = "command_injection"
-        threat_location = "URL"
-        matched_payload = decoded_uri
-    elif COMMAND_INJECTION_PATTERN.search(decoded_body):
-        threat_type = "command_injection"
-        threat_location = "Request Body"
-        matched_payload = decoded_body
-    # Priority 2: SQL Injection
-    elif SQLI_PATTERN.search(decoded_uri):
-        threat_type = "sql_injection"
-        threat_location = "URL"
-        matched_payload = decoded_uri
-    elif SQLI_PATTERN.search(decoded_body):
-        threat_type = "sql_injection"
-        threat_location = "Request Body"
-        matched_payload = decoded_body
-    # Priority 3: Path Traversal
-    elif PATH_TRAVERSAL_PATTERN.search(decoded_uri):
-        threat_type = "path_traversal"
-        threat_location = "URL"
-        matched_payload = decoded_uri
-    elif PATH_TRAVERSAL_PATTERN.search(decoded_body):
-        threat_type = "path_traversal"
-        threat_location = "Request Body"
-        matched_payload = decoded_body
-    # Priority 4: Cross-Site Scripting (XSS)
-    elif XSS_PATTERN.search(decoded_uri):
-        threat_type = "cross_site_scripting"
-        threat_location = "URL"
-        matched_payload = decoded_uri
-    elif XSS_PATTERN.search(decoded_body):
-        threat_type = "cross_site_scripting"
-        threat_location = "Request Body"
-        matched_payload = decoded_body
 
     # Priority 5: Brute Force Login Detection (Rate-based on HTTP 401 on login)
     is_login_endpoint = "/rest/user/login" in raw_uri or raw_uri.rstrip("/").endswith("/login")
     is_failed_login = method == "POST" and is_login_endpoint and status_code == "401"
 
     if not threat_type and is_failed_login:
-        now_ts = time.time()
+        try:
+            now_ts = datetime.fromisoformat(str(event["time"]).replace("Z", "+00:00")).timestamp()
+        except (KeyError, TypeError, ValueError):
+            now_ts = time.time()
         login_event_id = event.get("event_id")
         if not login_event_id and event.get("time"):
             login_event_id = hashlib.sha256(json.dumps(event, sort_keys=True).encode()).hexdigest()
@@ -263,7 +203,7 @@ def _ingest_juice_shop_access_log(event: Dict[str, Any], background_tasks: Backg
             "title": "Suspicious request observed",
             "event": f"Reverse proxy recorded a {threat_type.replace('_', ' ')} pattern in the request {threat_location}.",
             "timestamp": timestamp,
-            "phase": "Initial Access",
+            "phase": "Unknown",
         }]
         evidence_ref = f"{threat_location.lower().replace(' ', '_')}={payload[:500]}"
         mitre_context = [{"id": m, "name": threat_label, "source": "mitre-rule"} for m in mitre_ids]
@@ -318,7 +258,7 @@ def _ingest_juice_shop_access_log(event: Dict[str, Any], background_tasks: Backg
             "tool": "nginx-access-log",
             "evidence_ref": evidence_ref,
             "source": "Juice Shop reverse proxy",
-            "confidence": "High",
+            "confidence": "Observed",
         }],
         "contra_evidence": [],
         "tool_trace": [],

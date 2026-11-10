@@ -140,7 +140,7 @@ export const IncidentTable: React.FC<IncidentTableProps> = ({
             >
               <option value="ALL">Status: All</option>
               <option value="Active">Active Threat</option>
-              <option value="Mitigated">Mitigated</option>
+              <option value="Mitigated">Approved</option>
               <option value="False Positive">False Positive</option>
             </select>
           </div>
@@ -267,7 +267,7 @@ export const IncidentTable: React.FC<IncidentTableProps> = ({
                   <td className="py-3 px-4 whitespace-nowrap">
                     <VerdictBadge
                       verdict={incident.aiVerdict}
-                      confidence={incident.aiConfidence}
+                      confidence={incident.llmModel === "investigation-pending" ? undefined : incident.aiConfidence}
                     />
                   </td>
 

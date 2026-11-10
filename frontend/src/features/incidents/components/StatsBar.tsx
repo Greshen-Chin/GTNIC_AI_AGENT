@@ -11,7 +11,7 @@ interface StatsBarProps {
 
 export const StatsBar: React.FC<StatsBarProps> = ({ stats, isValidating }) => {
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-5">
       {/* Active Threats In Queue */}
       <div className="rounded-lg bg-[#0c121e]/90 border border-slate-800/80 p-3.5 relative overflow-hidden backdrop-blur-md">
         <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 mb-1.5">
@@ -27,7 +27,7 @@ export const StatsBar: React.FC<StatsBarProps> = ({ stats, isValidating }) => {
           </span>
         </div>
         <p className="text-[10px] text-slate-400 font-mono mt-1">
-          Unmitigated correlated alerts
+          Alerts awaiting analyst decision
         </p>
       </div>
 
@@ -53,7 +53,7 @@ export const StatsBar: React.FC<StatsBarProps> = ({ stats, isValidating }) => {
       {/* Mitigated / Resolved */}
       <div className="rounded-lg bg-[#0c121e]/90 border border-slate-800/80 p-3.5 relative overflow-hidden backdrop-blur-md">
         <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 mb-1.5">
-          <span className="tracking-wider uppercase text-cyan-300">Enforced Mitigations</span>
+          <span className="tracking-wider uppercase text-cyan-300">Approved Mitigations</span>
           <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400" />
         </div>
         <div className="flex items-baseline justify-between">
@@ -61,31 +61,41 @@ export const StatsBar: React.FC<StatsBarProps> = ({ stats, isValidating }) => {
             {stats?.mitigatedCount ?? "--"}
           </span>
           <span className="text-[10px] text-cyan-400 font-mono px-1.5 py-0.5 rounded bg-cyan-950/60 border border-cyan-800/40">
-            SOAR Enforced
+            Analyst Approved
           </span>
         </div>
         <p className="text-[10px] text-slate-400 font-mono mt-1">
-          Playbooks executed & closed
+          Approval recorded; execution not verified
         </p>
       </div>
 
       {/* AI Correlation Confidence */}
       <div className="rounded-lg bg-[#0c121e]/90 border border-slate-800/80 p-3.5 relative overflow-hidden backdrop-blur-md">
         <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 mb-1.5">
-          <span className="tracking-wider uppercase text-indigo-300">Avg Correlation Conf.</span>
+          <span className="tracking-wider uppercase text-indigo-300">Avg Evidence Score</span>
           <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
         </div>
         <div className="flex items-baseline justify-between">
           <span className="text-2xl sm:text-3xl font-bold font-mono text-indigo-300 tabular-nums">
-            {stats ? `${Math.round(stats.aiAverageConfidence * 100)}%` : "--"}
+            {stats?.aiAverageConfidence != null ? `${Math.round(stats.aiAverageConfidence * 100)}%` : "--"}
           </span>
           <span className="text-[10px] text-slate-400 font-mono px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800">
-            {isValidating ? "Syncing..." : "Calibrated"}
+            {isValidating ? "Syncing..." : "Assessed only"}
           </span>
         </div>
         <p className="text-[10px] text-slate-400 font-mono mt-1">
-          Multi-source evidentiary baseline
+          Evidence support score, not accuracy
         </p>
+      </div>
+      <div className="rounded-lg bg-[#0c121e]/90 border border-slate-800/80 p-3.5 font-mono">
+        <p className="text-[11px] uppercase text-emerald-300">Lab Detection Accuracy</p>
+        <p className="text-2xl sm:text-3xl font-bold text-emerald-400 mt-1">
+          {stats?.detectionAccuracy != null ? `${(stats.detectionAccuracy * 100).toFixed(1)}%` : "--"}
+        </p>
+        <p className="text-[10px] text-slate-400 mt-1">
+          {stats?.evaluationCorrect ?? "--"}/{stats?.evaluationCases ?? "--"} labelled lab cases
+        </p>
+        <p className="text-[10px] text-slate-500 mt-1">Detector test set; excludes AI narrative</p>
       </div>
     </div>
   );

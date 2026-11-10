@@ -1,0 +1,312 @@
+{
+  "version": "lab-requests-v1",
+  "scope": "Request-signature classification; not AI narrative accuracy or exploit success.",
+  "cases": [
+    {
+      "name": "ordinary home",
+      "expected": null,
+      "event": {
+        "uri": "/",
+        "body": "",
+        "method": "GET"
+      }
+    },
+    {
+      "name": "product query",
+      "expected": null,
+      "event": {
+        "uri": "/rest/products/search?q=apple",
+        "body": "",
+        "method": "GET"
+      }
+    },
+    {
+      "name": "ordinary login",
+      "expected": null,
+      "event": {
+        "uri": "/rest/user/login",
+        "body": "{\"email\": \"alice@example.com\", \"password\": \"secret\"}",
+        "method": "POST"
+      }
+    },
+    {
+      "name": "password containing dashes",
+      "expected": null,
+      "event": {
+        "uri": "/rest/user/login",
+        "body": "{\"email\": \"alice@example.com\", \"password\": \"summer--2026\"}",
+        "method": "POST"
+      }
+    },
+    {
+      "name": "password containing hash",
+      "expected": null,
+      "event": {
+        "uri": "/rest/user/login",
+        "body": "{\"email\": \"alice@example.com\", \"password\": \"secret#123\"}",
+        "method": "POST"
+      }
+    },
+    {
+      "name": "form email and punctuation",
+      "expected": null,
+      "event": {
+        "uri": "/rest/user/login",
+        "body": "email=alice%40example.com&password=secret%23123",
+        "method": "POST"
+      }
+    },
+    {
+      "name": "encoded product hashtag",
+      "expected": null,
+      "event": {
+        "uri": "/rest/products/search?q=%23apple",
+        "body": "",
+        "method": "GET"
+      }
+    },
+    {
+      "name": "normal feedback",
+      "expected": null,
+      "event": {
+        "uri": "/api/Feedbacks",
+        "body": "{\"comment\": \"This week's apples are good!\"}",
+        "method": "POST"
+      }
+    },
+    {
+      "name": "asset request",
+      "expected": null,
+      "event": {
+        "uri": "/assets/public/images/apple.jpg",
+        "body": "",
+        "method": "GET"
+      }
+    },
+    {
+      "name": "health request",
+      "expected": null,
+      "event": {
+        "uri": "/health",
+        "body": "",
+        "method": "GET"
+      }
+    },
+    {
+      "name": "socket verification with SQL text",
+      "expected": null,
+      "event": {
+        "uri": "/socket.io/?EIO=4&transport=polling",
+        "body": "42[\"verifyLocalXssChallenge\", \"' OR 1=1\"]",
+        "method": "POST"
+      }
+    },
+    {
+      "name": "socket verification with script text",
+      "expected": null,
+      "event": {
+        "uri": "/socket.io/?EIO=4&transport=polling",
+        "body": "42[\"verifyLocalXssChallenge\", \"<script>\"]",
+        "method": "POST"
+      }
+    },
+    {
+      "name": "batched challenge telemetry",
+      "expected": null,
+      "event": {
+        "uri": "/socket.io/?EIO=4&transport=polling",
+        "body": "42[\"verifyLocalXssChallenge\", \"' OR 1=1\"]\u001e42[\"verifyLocalXssChallenge\", \"' OR 1=1\"]\u001e42[\"verifyLocalXssChallenge\", \"' OR 1=1\"]",
+        "method": "POST"
+      }
+    },
+    {
+      "name": "normal JSON values stay separate",
+      "expected": null,
+      "event": {
+        "uri": "/api/Feedbacks",
+        "body": "{\"or\": \"ordinary\", \"value\": \"1=1\"}",
+        "method": "POST"
+      }
+    },
+    {
+      "name": "SQL boolean query",
+      "expected": "sql_injection",
+      "event": {
+        "uri": "/rest/products/search?q=%27%20OR%201%3D1--",
+        "body": "",
+        "method": "GET"
+      }
+    },
+    {
+      "name": "SQL union query",
+      "expected": "sql_injection",
+      "event": {
+        "uri": "/rest/products/search?q=1%20UNION%20SELECT%20name%20FROM%20users",
+        "body": "",
+        "method": "GET"
+      }
+    },
+    {
+      "name": "SQL login body",
+      "expected": "sql_injection",
+      "event": {
+        "uri": "/rest/user/login",
+        "body": "{\"email\": \"' OR 1=1--\", \"password\": \"dummy\"}",
+        "method": "POST"
+      }
+    },
+    {
+      "name": "SQL string equality",
+      "expected": "sql_injection",
+      "event": {
+        "uri": "/rest/user/login",
+        "body": "{\"email\": \"admin' OR 'a'='a'--\"}",
+        "method": "POST"
+      }
+    },
+    {
+      "name": "SQL time query",
+      "expected": "sql_injection",
+      "event": {
+        "uri": "/search?q=pg_sleep(5)",
+        "body": "",
+        "method": "GET"
+      }
+    },
+    {
+      "name": "SQL stacked query",
+      "expected": "sql_injection",
+      "event": {
+        "uri": "/search?q=1%3B%20DROP%20TABLE%20users",
+        "body": "",
+        "method": "GET"
+      }
+    },
+    {
+      "name": "SQL form input",
+      "expected": "sql_injection",
+      "event": {
+        "uri": "/rest/user/login",
+        "body": "email=%27+OR+1%3D1--&password=test",
+        "method": "POST"
+      }
+    },
+    {
+      "name": "SQL double encoding",
+      "expected": "sql_injection",
+      "event": {
+        "uri": "/search?q=%2527%2520OR%25201%253D1--",
+        "body": "",
+        "method": "GET"
+      }
+    },
+    {
+      "name": "script feedback",
+      "expected": "cross_site_scripting",
+      "event": {
+        "uri": "/api/Feedbacks",
+        "body": "{\"comment\": \"<script>alert(1)</script>\"}",
+        "method": "POST"
+      }
+    },
+    {
+      "name": "image event handler",
+      "expected": "cross_site_scripting",
+      "event": {
+        "uri": "/search?q=%3Cimg%20src=x%20onerror=alert(1)%3E",
+        "body": "",
+        "method": "GET"
+      }
+    },
+    {
+      "name": "javascript scheme",
+      "expected": "cross_site_scripting",
+      "event": {
+        "uri": "/redirect?to=javascript%3Aalert(1)",
+        "body": "",
+        "method": "GET"
+      }
+    },
+    {
+      "name": "SVG onload",
+      "expected": "cross_site_scripting",
+      "event": {
+        "uri": "/api/Feedbacks",
+        "body": "{\"comment\": \"<svg onload=alert(1)>\"}",
+        "method": "POST"
+      }
+    },
+    {
+      "name": "path file parameter",
+      "expected": "path_traversal",
+      "event": {
+        "uri": "/ftp?file=../../../../etc/passwd",
+        "body": "",
+        "method": "GET"
+      }
+    },
+    {
+      "name": "sensitive file probe",
+      "expected": "path_traversal",
+      "event": {
+        "uri": "/etc/passwd",
+        "body": "",
+        "method": "GET"
+      }
+    },
+    {
+      "name": "encoded traversal",
+      "expected": "path_traversal",
+      "event": {
+        "uri": "/download?file=..%2F..%2Fetc%2Fshadow",
+        "body": "",
+        "method": "GET"
+      }
+    },
+    {
+      "name": "Windows traversal body",
+      "expected": "path_traversal",
+      "event": {
+        "uri": "/download",
+        "body": "{\"file\": \"..\\\\..\\\\win.ini\"}",
+        "method": "POST"
+      }
+    },
+    {
+      "name": "shell semicolon",
+      "expected": "command_injection",
+      "event": {
+        "uri": "/api/tools/ping",
+        "body": "{\"host\": \"127.0.0.1; whoami\"}",
+        "method": "POST"
+      }
+    },
+    {
+      "name": "shell pipe",
+      "expected": "command_injection",
+      "event": {
+        "uri": "/api/tools/ping?host=127.0.0.1%7C%20id",
+        "body": "",
+        "method": "GET"
+      }
+    },
+    {
+      "name": "command substitution",
+      "expected": "command_injection",
+      "event": {
+        "uri": "/api/tools/ping",
+        "body": "{\"host\": \"$(id)\"}",
+        "method": "POST"
+      }
+    },
+    {
+      "name": "backtick command",
+      "expected": "command_injection",
+      "event": {
+        "uri": "/api/tools/ping",
+        "body": "{\"host\": \"`whoami`\"}",
+        "method": "POST"
+      }
+    }
+  ]
+}

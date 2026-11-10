@@ -5,6 +5,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta, timezone
 import httpx
 from app.config import settings
+from app.services.request_detector import request_inputs, detect_request
 
 logger = logging.getLogger("soar-api.wazuh")
 
@@ -343,29 +344,38 @@ def inspect_web_attack(srcip: str, attack_type: str = "all", time_window: str = 
     else:  # hanya saat ALLOW_SIMULATION=true (pytest)
         alerts = get_simulated_wazuh_data(srcip).get("alerts", [])
 
+    requested_type = {"sqli": "sql_injection", "xss": "cross_site_scripting"}.get(attack_type)
+    if requested_type:
+        alerts = [a for a in alerts if (detect_request({
+            "uri": (a.get("data") or {}).get("url"),
+            "body": (a.get("data") or {}).get("body"),
+        }) or {}).get("threat_type") == requested_type]
+
     status_breakdown: Dict[str, int] = {}
     endpoints_set = set()
     sqli_types, xss_types = set(), set()
     sqli_payloads, xss_payloads = [], []
     sqli_params, xss_params = set(), set()
+    sqli_error_count = 0
 
     for alt in alerts:
+        has_sqli = False
         data = alt.get("data", {}) or {}
         raw_url = data.get("url") or alt.get("url") or alt.get("full_log", "")
         code = extract_http_status(alt) or "unknown"
         status_breakdown[code] = status_breakdown.get(code, 0) + 1
 
-        decoded = urllib.parse.unquote_plus(raw_url) if raw_url else ""
-        if decoded:
-            try:
-                parsed = urllib.parse.urlsplit(decoded)
-                keys = [k.lower() for k in urllib.parse.parse_qs(parsed.query).keys()]
-                if parsed.path:
-                    endpoints_set.add(parsed.path)
-            except ValueError:
-                keys = []
+        try:
+            parsed = urllib.parse.urlsplit(raw_url)
+            keys = [k.lower() for k in urllib.parse.parse_qs(parsed.query).keys()]
+            endpoints_set.add(parsed.path)
+        except ValueError:
+            keys = []
+        # Inspect fields independently; joining fields could manufacture a pattern.
+        for _, decoded in request_inputs(raw_url, data.get("body")):
             for name, rgx in SQLI_PATTERNS.items():
                 if rgx.search(decoded):
+                    has_sqli = True
                     sqli_types.add(name)
                     sqli_params.update(keys)
                     if len(sqli_payloads) < 3 and decoded[:120] not in sqli_payloads:
@@ -377,17 +387,14 @@ def inspect_web_attack(srcip: str, attack_type: str = "all", time_window: str = 
                     if len(xss_payloads) < 3 and decoded[:120] not in xss_payloads:
                         xss_payloads.append(decoded[:120])
 
-        desc = (alt.get("rule", {}).get("description") or "").lower()
-        if "sql" in desc:
-            sqli_types.add("pattern_in_rule")
-        if "xss" in desc or "cross-site" in desc:
-            xss_types.add("pattern_in_rule")
+        if has_sqli and code == "500":
+            sqli_error_count += 1
 
     sqli_detected, xss_detected = bool(sqli_types), bool(xss_types)
     c403, c500 = status_breakdown.get("403", 0), status_breakdown.get("500", 0)
     c200, cunk = status_breakdown.get("200", 0), status_breakdown.get("unknown", 0)
-    server_error = c500 > 0 and sqli_detected
-    waf_mitigated = c403 > 0 and c500 == 0 and c200 == 0
+    server_error = sqli_error_count > 0
+    waf_mitigated = None  # HTTP 403 alone does not establish WAF enforcement.
 
     def primary(types):
         return next((t for t in sorted(types) if t != "pattern_in_rule"), "pattern_in_rule")
@@ -428,10 +435,10 @@ def inspect_web_attack(srcip: str, attack_type: str = "all", time_window: str = 
         "endpoints_targeted": sorted(endpoints_set),
         "sqli": {"detected": sqli_detected, "sqli_types": sorted(sqli_types),
                  "sample_payloads": sqli_payloads, "targeted_parameters": sorted(sqli_params),
-                 "database_error_reflected": server_error},
+                 "database_error_reflected": None},
         "xss": {"detected": xss_detected, "xss_types": sorted(xss_types),
                 "sample_payloads": xss_payloads, "targeted_parameters": sorted(xss_params),
-                "csp_enforced": False, "httponly_protected": False},
+                "csp_enforced": None, "httponly_protected": None},
         "waf_mitigated": waf_mitigated,
         "facts": facts,
         "provenance": _prov(res),
